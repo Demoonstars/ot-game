@@ -14,11 +14,13 @@
             extend: {
                 keyframes: {
                     shake: { '0%, 100%': { transform: 'translateX(0)' }, '25%': { transform: 'translateX(-2px)' }, '75%': { transform: 'translateX(2px)' } },
-                    blob: { '0%': { transform: 'translate(0, 0) scale(1)' }, '33%': { transform: 'translate(30px, -50px) scale(1.1)' }, '66%': { transform: 'translate(-20px, 20px) scale(0.9)' }, '100%': { transform: 'translate(0, 0) scale(1)' } }
+                    blob: { '0%': { transform: 'translate(0, 0) scale(1)' }, '33%': { transform: 'translate(30px, -50px) scale(1.1)' }, '66%': { transform: 'translate(-20px, 20px) scale(0.9)' }, '100%': { transform: 'translate(0, 0) scale(1)' } },
+                    warning: { '0%': { backgroundPosition: '0 0' }, '100%': { backgroundPosition: '40px 0' } }
                 },
                 animation: {
                     shake: 'shake 0.3s infinite',
-                    blob: 'blob 7s infinite alternate'
+                    blob: 'blob 7s infinite alternate',
+                    warning: 'warning 1s linear infinite'
                 }
             }
         }
@@ -41,11 +43,14 @@
     .grid-overlay { position: fixed; inset: 0; z-index: -1; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 40px; }
     .noise { position: fixed; inset: 0; z-index: -1; opacity: 0.03; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
 
-    /* ФОНЫ ПО ВРЕМЕНИ СУТОК */
+    /* ФОНЫ ПО ВРЕМЕНИ СУТОК И БОСС-ФАЙТ */
     .theme-morning .blob-1 { background: #0ea5e9; } .theme-morning .blob-2 { background: #38bdf8; }
     .theme-day .blob-1 { background: #2563eb; } .theme-day .blob-2 { background: #10b981; }
     .theme-evening .blob-1 { background: #f59e0b; } .theme-evening .blob-2 { background: #7c3aed; }
     .theme-night .blob-1 { background: #1e293b; } .theme-night .blob-2 { background: #4c1d95; }
+    
+    .theme-boss { background: repeating-linear-gradient(-45deg, #0f172a, #0f172a 20px, #eab308 20px, #eab308 40px) !important; animation: warning 2s linear infinite !important; }
+    .theme-boss .blob { display: none; }
 
     .tunnel-vision { position: fixed; inset: 0; pointer-events: none; z-index: 40; box-shadow: inset 0 0 150px 0px rgba(225, 29, 72, 0); transition: box-shadow 0.3s; }
     .tunnel-vision.critical { animation: heartbeat 1.2s infinite; }
@@ -53,18 +58,22 @@
 
     .glass-panel { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); border-top: 1px solid rgba(255,255,255,0.05); }
 
-    /* НЕОНОВЫЕ КОЛБЫ */
     .flask-container { width: 100%; height: 14px; background: rgba(0, 0, 0, 0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); margin-top: 4px;}
     .flask-fill { height: 100%; border-radius: 10px; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s, box-shadow 0.4s; }
     .flask-flash { animation: damage-flash 0.5s ease-out; }
     @keyframes damage-flash { 0% { background-color: #ffffff; box-shadow: 0 0 30px #ffffff; } }
 
-    /* 3D КАРТОЧКА */
     .card-stack { position: relative; width: 100%; max-width: 340px; aspect-ratio: 3/4.2; margin: 0 auto; perspective: 1500px; z-index: 10; }
     .swipe-card { position: absolute; inset: 0; background: #ffffff; border-radius: 32px; border: 4px solid #e2e8f0; display: flex; flex-direction: column; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6); will-change: transform; transform-style: preserve-3d; }
     .glare { position: absolute; inset: 0; border-radius: 28px; pointer-events: none; transition: opacity 0.2s; z-index: 5; mix-blend-mode: overlay; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 50%); }
 
-    /* КНОПКА ЗВОНКА И ПОДСКАЗКА */
+    .resetting { transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .next-card { position: absolute; inset: 0; background: #f8fafc; border-radius: 32px; border: 4px solid #cbd5e1; transform: scale(0.92) translateY(20px); opacity: 0.8; z-index: -1; }
+
+    .choice-indicator { position: absolute; top: 30px; padding: 12px 24px; border-radius: 16px; font-weight: 900; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0; border: 5px solid; z-index: 10; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .choice-left { right: 20px; color: #e11d48; border-color: #e11d48; transform: rotate(15deg); }
+    .choice-right { left: 20px; color: #10b981; border-color: #10b981; transform: rotate(-15deg); }
+
     .call-btn-container { position: fixed; bottom: 25px; right: 20px; z-index: 50; }
     .call-btn { width: 65px; height: 65px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 10px 30px rgba(59,130,246,0.6); border: 3px solid #93c5fd; transition: transform 0.2s; }
     .call-btn:active { transform: scale(0.9); }
@@ -74,14 +83,16 @@
     .call-hint::after { content: ''; position: absolute; bottom: -10px; right: 25px; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid #ffffff; }
     @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-    /* ГЛИТЧ И ПЕЧАТЬ */
     .stamp { position: absolute; top: 15%; left: 50%; margin-left: -180px; font-size: 5.5rem; font-weight: 900; color: #e11d48; border: 10px solid #e11d48; padding: 15px 40px; border-radius: 20px; transform: rotate(-15deg); pointer-events: none; z-index: 100; text-shadow: 0 0 15px rgba(225,29,72,0.8); box-shadow: 0 0 30px rgba(225,29,72,0.8), inset 0 0 30px rgba(225,29,72,0.8); animation: stamp-smash 0.5s cubic-bezier(0.1, 2, 0.5, 1) forwards; animation-delay: 3s; opacity: 0; }
     @keyframes stamp-smash { 0% { transform: scale(5) rotate(-20deg); opacity: 0; } 50% { transform: scale(1) rotate(-15deg); opacity: 1; } 100% { transform: scale(1) rotate(-15deg); opacity: 1; } }
 
     .particle { position: absolute; pointer-events: none; border-radius: 50%; z-index: 100; animation: fade-out 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
     @keyframes fade-out { 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 
-    #share-badge-wrap { position: absolute; top: -9999px; left: -9999px; width: 600px; height: 800px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; }
+    #share-badge-wrap { position: absolute; top: -9999px; left: -9999px; width: 600px; height: 800px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; box-sizing: border-box;}
+    .badge-logo { font-size: 5rem; margin-bottom: 20px; } .badge-title { font-size: 3rem; font-weight: 900; margin: 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px;} .badge-sub { font-size: 1.5rem; color: #94a3b8; margin-bottom: 40px; } .badge-days { font-size: 8rem; font-weight: 900; margin: 0; line-height: 1; color: #f8fafc; text-shadow: 0 10px 30px rgba(0,0,0,0.5); } .badge-days-label { font-size: 2rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 40px;} .badge-rank { font-size: 2.5rem; font-weight: 700; color: #fbbf24; background: rgba(255,255,255,0.1); padding: 15px 40px; border-radius: 20px; }
   </style>
 </head>
 <body>
@@ -92,7 +103,32 @@
   const { useState, useEffect, useRef } = React;
   const { createRoot } = ReactDOM;
 
-  const vibrate = (pattern) => {
+  // --- ЗВУКОВОЙ ДВИЖОК (WEB AUDIO API) ---
+  const audioCtx = useRef(null);
+  const initAudio = () => {
+      if (!audioCtx.current) {
+          audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.current.state === 'suspended') audioCtx.current.resume();
+  };
+
+  const playTone = (freq, type, duration, vol=0.1) => {
+      if (!audioCtx.current) return;
+      const osc = audioCtx.current.createOscillator();
+      const gain = audioCtx.current.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.current.currentTime);
+      gain.gain.setValueAtTime(vol, audioCtx.current.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.current.currentTime + duration);
+      osc.connect(gain); gain.connect(audioCtx.current.destination);
+      osc.start(); osc.stop(audioCtx.current.currentTime + duration);
+  };
+
+  const playSwipeSound = () => playTone(400, 'sine', 0.15, 0.05);
+  const playDamageSound = () => playTone(100, 'sawtooth', 0.4, 0.15);
+  const playHeartbeatTone = () => { playTone(60, 'sine', 0.15, 0.4); setTimeout(() => playTone(60, 'sine', 0.15, 0.3), 250); };
+
+  const vibratePhone = (pattern) => {
     if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.vibrate) {
       window.navigator.vibrate(pattern);
     }
@@ -116,7 +152,6 @@
       }
   };
 
-  // КИНЕТИЧЕСКИЙ ТЕКСТ
   const TypewriterText = ({ text }) => {
       const [displayed, setDisplayed] = useState("");
       useEffect(() => {
@@ -140,6 +175,7 @@
       return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed" />;
   };
 
+  // --- БАЗА СЦЕНАРИЕВ ---
   const ALL_SCENARIOS = [
     { isUrgent: false, character: "Дежурный специалист", role: "РЭО", avatar: "🪜", text: "У нас перегорела люстра в холле лобби. Высота 5 метров. Леса собирать долго, давай ребята две стремянки поставят и доску между ними кинут?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "РАЗРЕШИТЬ", onLeft: { safety: 10, budget: -15, loyalty: -10, msg: "Люстра не горит. Гости жалуются на темноту." }, onRight: { safety: -40, budget: 10, loyalty: 5, msg: "Доска треснула. Рабочий упал с 5 метров. Уголовное дело." } },
     { isUrgent: false, character: "Шеф-повар", role: "Служба питания", avatar: "🍳", text: "Фритюрница искрит на контактах. Электрик будет только завтра. Я замотал изолентой, банкет надо выдавать. Работаем?", leftChoice: "ВЫВЕСТИ ИЗ СТОЯ", rightChoice: "ГОТОВЬ АККУРАТНО", onLeft: { safety: 15, budget: -25, loyalty: -15, msg: "Меню банкета сорвано. Отель платит неустойку." }, onRight: { safety: -45, budget: 20, loyalty: 0, msg: "Короткое замыкание. Пожар в горячем цеху, эвакуация." } },
@@ -152,15 +188,32 @@
     { isUrgent: true, character: "Админ. контроль", role: "КПП", avatar: "🏃‍♂️", text: "В ресторане гость подавился стейком! Он задыхается, синеет! Я не умею делать прием Геймлиха. Вызывать скорую или вы сами прибежите?!", leftChoice: "ВЫЗЫВАЙ СКОРУЮ", rightChoice: "БЕГУ САМ (СЛР)", onLeft: { safety: -50, budget: 0, loyalty: 0, msg: "Скорая ехала 20 минут. Гость задохнулся. Вы не организовали первую помощь." }, onRight: { safety: 20, budget: 0, loyalty: 15, msg: "Вы успели спасти жизнь приемом Геймлиха. Вы герой." } },
     { isUrgent: false, character: "Директор", role: "Администрация", avatar: "👔", text: "СОУТ (спецоценка) обойдется в полмиллиона. Давай заплатим конторе 50 тысяч, они без выезда нарисуют нам 2-й класс опасности для всех?", leftChoice: "ЭТО УГОЛОВКА", rightChoice: "ХОРОШАЯ ИДЕЯ", onLeft: { safety: 15, budget: -30, loyalty: -20, msg: "Директор взбешен тратами, но по закону вы прикрыты." }, onRight: { safety: -40, budget: 30, loyalty: 15, msg: "При тяжелой травме подлог вскрылся. Директор перевел вину на вас." } },
     { isUrgent: false, character: "Электрик", role: "ЭТО", avatar: "🔌", text: "В подвале вода по щиколотку после ливня, а там электрощитовая. Надо зайти рубильник отключить. Диэлектрических бот нет. Пойду в резиновых сапогах?", leftChoice: "СТОЙ!", rightChoice: "ИДИ АККУРАТНО", onLeft: { safety: 15, budget: -15, loyalty: -5, msg: "Ждем МЧС. Подвал затопило еще сильнее." }, onRight: { safety: -60, budget: 10, loyalty: 5, msg: "Обычная резина не спасла от шагового напряжения. Летальный исход." } },
-    { isUrgent: false, character: "Инспектор ГИТ", role: "Проверка", avatar: "👮", text: "У вас 30 сотрудников не прошли проверку знаний по охране труда (ПП №2464). Штраф 130 000 руб за каждого. Или договоримся?", leftChoice: "ПИШИТЕ ШТРАФ", rightChoice: "ДАВАЙТЕ ДОГОВОРИМСЯ", onLeft: { safety: 0, budget: -50, loyalty: -10, msg: "Огромный штраф. Отель на грани банкротства." }, onRight: { safety: -30, budget: -10, loyalty: 0, msg: "Сэкономили. Но сотрудники так и остались без знаний правил безопасности." } },
+    { isUrgent: false, character: "Инспектор ГИТ", role: "Проверка", avatar: "👮", text: "У вас 30 сотрудников не прошли проверку знаний по охране труда (ПП №2464). Штраф 130 000 руб за каждого. Или договоримся?", leftChoice: "ПИШИТЕ ШТРАФ", rightChoice: "ДОГОВОРИМСЯ", onLeft: { safety: 0, budget: -50, loyalty: -10, msg: "Огромный штраф. Отель на грани банкротства." }, onRight: { safety: -30, budget: -10, loyalty: 0, msg: "Сэкономили. Но сотрудники так и остались без знаний правил безопасности." } },
     { isUrgent: false, character: "Горничная", role: "ГХ", avatar: "🧪", text: "Канистры с химией в кладовке тяжелые. Девочки перелили доместос и кислоту в обычные бутылки из-под минералки без этикеток, так удобнее носить.", leftChoice: "ИЗЪЯТЬ БУТЫЛКИ", rightChoice: "ПУСТЬ НОСЯТ", onLeft: { safety: 15, budget: 0, loyalty: -15, msg: "Горничные жалуются на сорванные спины от тяжелых канистр." }, onRight: { safety: -40, budget: 0, loyalty: 10, msg: "Стажер случайно выпил глоток химии из бутылки из-под Sprite." } },
     { isUrgent: true, character: "Диспетчер", role: "Лифты", avatar: "🛗", text: "В лифте застряли 4 гостя! Там жарко, у одного паническая атака. Лифтер будет ехать час. Дежурный предлагает вскрыть двери ломиком прямо сейчас!", leftChoice: "ЖДЕМ ЛИФТЕРА", rightChoice: "ВСКРЫВАЙТЕ", onLeft: { safety: 15, budget: -10, loyalty: -25, msg: "Гости просидели час в духоте. Жесткий скандал, но все живы." }, onRight: { safety: -50, budget: 0, loyalty: 10, msg: "При вскрытии ломом лифт дернулся. Гость упал в шахту." } },
     { isUrgent: false, character: "Снабженец", role: "Закупки", avatar: "📦", text: "Мы купили новые огнетушители, но они без паспортов и чеки не опломбированы. Зато скидка 40%. Расставляем по этажам?", leftChoice: "ВЕРНУТЬ ОБРАТНО", rightChoice: "РАССТАВЛЯЕМ", onLeft: { safety: 15, budget: -20, loyalty: -5, msg: "Остались без огнетушителей на неделю, ждем новую партию." }, onRight: { safety: -35, budget: 20, loyalty: 0, msg: "При реальном возгорании огнетушители не сработали. Пожар." } },
-    // НЕЙТРАЛЬНЫЕ
-    { isUrgent: false, character: "Уборщица", role: "ГХ", avatar: "🧹", text: "В холле протерся коврик, края задираются. Посетители спотыкаются, но не падают. Заказать новый за 15к или приклеить края двусторонним скотчем?", leftChoice: "КЛЕИТЬ СКОТЧЕМ", rightChoice: "ЗАКАЗАТЬ НОВЫЙ", onLeft: { safety: -5, budget: 5, loyalty: -5, msg: "Коврик приклеен. Выглядит неопрятно, но пока держится." }, onRight: { safety: 5, budget: -5, loyalty: 5, msg: "Постелили новый коврик. Безопасно и эстетично." } },
-    { isUrgent: false, character: "Админ. контроль", role: "Патруль", avatar: "🔦", text: "Перегорела лампочка на черной лестнице. Там редко ходят. Отправить техника сейчас или подождать до завтрашнего утреннего обхода?", leftChoice: "ЖДАТЬ ДО ЗАВТРА", rightChoice: "МЕНЯТЬ СЕЙЧАС", onLeft: { safety: -5, budget: 0, loyalty: 0, msg: "Ночью повар споткнулся в темноте, но не упал. Завтра поменяют." }, onRight: { safety: 5, budget: -5, loyalty: 0, msg: "Техник поворчал, но заменил лампу. Лестница освещена." } },
+    
+    // НЕЙТРАЛЬНЫЕ С ОТЛОЖЕННЫМ ЭФФЕКТОМ (ЭФФЕКТ БАБОЧКИ)
+    { isUrgent: false, character: "Уборщица", role: "ГХ", avatar: "🧹", text: "В холле протерся коврик, края задираются. Посетители спотыкаются, но не падают. Заказать новый за 15к или приклеить края двусторонним скотчем?", leftChoice: "КЛЕИТЬ СКОТЧЕМ", rightChoice: "ЗАКАЗАТЬ НОВЫЙ", 
+      onLeft: { safety: -5, budget: 5, loyalty: -5, msg: "Коврик приклеен. Выглядит неопрятно, но пока держится.", 
+        spawnCard: { isUrgent: true, character: "Гость", role: "VIP", avatar: "🤬", text: "Я споткнулся о ваш скотч на коврике и разбил нос! Я подаю в суд на ваш отель!", leftChoice: "ИЗВИНИТЬСЯ", rightChoice: "ОПЛАТИТЬ ЛЮКС", onLeft: { safety: -10, budget: 0, loyalty: -20, msg: "Гость написал разгромный отзыв и подал иск." }, onRight: { safety: 0, budget: -20, loyalty: 10, msg: "Гость успокоился в бесплатном люксе. Бюджет просел." } }
+      }, 
+      onRight: { safety: 5, budget: -5, loyalty: 5, msg: "Постелили новый коврик. Безопасно и эстетично." } 
+    },
+    { isUrgent: false, character: "Админ. контроль", role: "Патруль", avatar: "🔦", text: "Перегорела лампочка на черной лестнице. Там редко ходят. Отправить техника сейчас или подождать до завтрашнего утреннего обхода?", leftChoice: "ЖДАТЬ ДО ЗАВТРА", rightChoice: "МЕНЯТЬ СЕЙЧАС", 
+      onLeft: { safety: -5, budget: 0, loyalty: 0, msg: "Ночью повар споткнулся в темноте, но не упал. Завтра поменяют.",
+        spawnCard: { isUrgent: false, character: "Повар", role: "Травма", avatar: "🤕", text: "Я вчера упал на темной лестнице, растянул связки. На смену не выйду неделю.", leftChoice: "ОТПУСТИТЬ", rightChoice: "ЗАСТАВИТЬ РАБОТАТЬ", onLeft: { safety: 5, budget: -15, loyalty: 10, msg: "Кухня осталась без повара. Оплата больничного." }, onRight: { safety: -20, budget: 10, loyalty: -20, msg: "Повар пожаловался в инспекцию." } }
+      }, 
+      onRight: { safety: 5, budget: -5, loyalty: 0, msg: "Техник поворчал, но заменил лампу. Лестница освещена." } 
+    },
     { isUrgent: false, character: "Офис-менеджер", role: "Кадры", avatar: "🗂️", text: "У офисных сотрудников срок планового инструктажа. Собрать всех в зале на час (оторвать от работы) или скинуть презентацию на почту для галочки?", leftChoice: "СОБРАТЬ В ЗАЛЕ", rightChoice: "КИНУТЬ НА ПОЧТУ", onLeft: { safety: 5, budget: -5, loyalty: -5, msg: "Бухгалтерия недовольна потерей времени, но инструктаж пройден честно." }, onRight: { safety: -5, budget: 5, loyalty: 5, msg: "Все рады, что не пришлось идти. Знаний по ТБ не прибавилось." } },
     { isUrgent: false, character: "Медсестра", role: "Медцентр", avatar: "🩹", text: "У нас в трех аптечках на этажах бинты истекают через неделю. Закупить новые сегодня или дотянем до следующего месяца?", leftChoice: "ДОТЯНЕМ", rightChoice: "ЗАКУПИТЬ СЕЙЧАС", onLeft: { safety: -5, budget: 5, loyalty: 0, msg: "Сэкономили копейки. Надеемся, никто серьезно не порежется." }, onRight: { safety: 5, budget: -5, loyalty: 0, msg: "Аптечки обновлены. Бюджет слегка похудел." } }
+  ];
+
+  // БОСС-КАРТЫ (Каждые 10 дней)
+  const BOSS_CARDS = [
+      { isBoss: true, character: "ИНСПЕКТОР", role: "ПРОКУРАТУРА", avatar: "🦅", text: "АНОНИМНАЯ ЖАЛОБА! НЕМЕДЛЕННО ПРЕДОСТАВЬТЕ ЖУРНАЛЫ ИНСТРУКТАЖЕЙ ЗА ГОД!", leftChoice: "ТЯНУТЬ ВРЕМЯ", rightChoice: "ДАТЬ ЖУРНАЛЫ", onLeft: { safety: -10, budget: -30, loyalty: 0, msg: "Штраф за воспрепятствование проверке!" }, onRight: { safety: -20, budget: -15, loyalty: 0, msg: "Нашли пару нарушений. Небольшой штраф." } },
+      { isBoss: true, character: "ПРОВЕРКА", role: "РОСПОТРЕБ", avatar: "🦠", text: "ВНЕПЛАНОВЫЙ РЕЙД НА КУХНЮ! ГДЕ МАРКИРОВКИ НА ДОСКАХ И НОЖАХ?!", leftChoice: "НЕ ПУСКАТЬ", rightChoice: "ПУСТИТЬ В ЦЕХ", onLeft: { safety: 0, budget: -40, loyalty: -10, msg: "Выписан гигантский штраф. Кухня под угрозой закрытия." }, onRight: { safety: -15, budget: -20, loyalty: 0, msg: "Нашли просрочку. Выписали предписание." } }
   ];
 
   function Game() {
@@ -177,22 +230,37 @@
     const [callUsed, setCallUsed] = useState(false);
     const [showCallOverlay, setShowCallOverlay] = useState(false);
     const [showCallHint, setShowCallHint] = useState(false);
+    
+    // Лидерборд и Ачивки
     const [achievements, setAchievements] = useState([]);
+    const [leaderboard, setLeaderboard] = useState([]);
     const [showGallery, setShowGallery] = useState(false);
+    
     const [dragPos, setDragPos] = useState(0);
     const [bgState, setBgState] = useState(""); 
-    
     const timerRef = useRef(null);
+    const heartbeatRef = useRef(null);
     const cardRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
 
+    const isCritical = stats.safety < 20 || stats.budget < 20 || stats.loyalty < 20;
+
     useEffect(() => {
-        const saved = JSON.parse(localStorage.getItem('smena_achievements') || '[]');
-        setAchievements(saved);
+        setAchievements(JSON.parse(localStorage.getItem('smena_achievements') || '[]'));
+        setLeaderboard(JSON.parse(localStorage.getItem('smena_leaderboard') || '[]'));
     }, []);
 
-    // Подсказка звонка В.В. (если любой параметр ниже 40%)
+    // Звук сердцебиения при стрессе
+    useEffect(() => {
+        if (isCritical && gameState === 'playing' && !showCallOverlay && !feedback) {
+            heartbeatRef.current = setInterval(() => playHeartbeatTone(), 1200);
+        } else {
+            clearInterval(heartbeatRef.current);
+        }
+        return () => clearInterval(heartbeatRef.current);
+    }, [isCritical, gameState, showCallOverlay, feedback]);
+
     useEffect(() => {
         if (!callUsed && gameState === 'playing' && (stats.safety < 40 || stats.budget < 40 || stats.loyalty < 40)) {
             setShowCallHint(true);
@@ -210,6 +278,13 @@
         });
     };
 
+    const saveScore = (finalDay) => {
+        const newScore = { days: finalDay, date: new Date().toLocaleDateString('ru-RU') };
+        const newLb = [...leaderboard, newScore].sort((a,b) => b.days - a.days).slice(0, 5);
+        setLeaderboard(newLb);
+        localStorage.setItem('smena_leaderboard', JSON.stringify(newLb));
+    };
+
     const getRank = (days) => {
         if (days <= 5) return "Стажер с блокнотом 📝";
         if (days <= 10) return "Младший инспектор 🧐";
@@ -219,7 +294,8 @@
     };
 
     const initGame = () => {
-      vibrate(50);
+      initAudio();
+      vibratePhone(50);
       setStats({ safety: 50, budget: 50, loyalty: 50 });
       setDay(1); setCallUsed(false); setFeedback(null);
       const shuffled = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
@@ -234,13 +310,14 @@
     const handleTimeout = () => {
         unlockAchievement('slow');
         setDeathReason("ИТОГ:\nВы растерялись в критической ситуации.\n\nВЕРДИКТ:\nВас отстранили за халатность.");
+        saveScore(day);
         setGameState('gameover');
-        vibrate([500, 200, 500]);
+        vibratePhone([500, 200, 500]);
     };
 
-    // Таймер форс-мажора
+    // Таймер
     useEffect(() => {
-        if (gameState === 'playing' && currentCard?.isUrgent && !showCallOverlay && !feedback) {
+        if (gameState === 'playing' && (currentCard?.isUrgent || currentCard?.isBoss) && !showCallOverlay && !feedback) {
             timerRef.current = setInterval(() => {
                 setTimeLeft(prev => {
                     if (prev <= 1) { clearInterval(timerRef.current); handleTimeout(); return 0; }
@@ -254,20 +331,23 @@
     const makeChoice = (direction) => {
       if (showCallOverlay || feedback) return;
       clearInterval(timerRef.current);
-      vibrate(40); burstParticles(direction); 
-      setIsDragging(false); // На всякий случай сбрасываем драг
+      playSwipeSound();
+      burstParticles(direction); 
+      setIsDragging(false); 
       
       const effects = direction === 'left' ? currentCard.onLeft : currentCard.onRight;
       const newSafety = Math.min(100, Math.max(0, stats.safety + effects.safety));
       const newBudget = Math.min(100, Math.max(0, stats.budget + effects.budget));
       const newLoyalty = Math.min(100, Math.max(0, stats.loyalty + effects.loyalty));
 
+      if (newSafety < stats.safety || newBudget < stats.budget || newLoyalty < stats.loyalty) playDamageSound();
+
       setFlash({ safety: newSafety < stats.safety, budget: newBudget < stats.budget, loyalty: newLoyalty < stats.loyalty });
       setStats({ safety: newSafety, budget: newBudget, loyalty: newLoyalty });
       setFeedback({ text: effects.msg, safety: effects.safety, budget: effects.budget, loyalty: effects.loyalty });
       setBgState("");
       
-      // Задержка фидбека 3.5 секунды перед следующим ходом или проигрышем
+      // Задержка фидбека 3.5 секунды
       setTimeout(() => {
           setFeedback(null);
           if (newSafety <= 0 || newBudget <= 0 || newLoyalty <= 0) {
@@ -277,69 +357,105 @@
               if (newBudget <= 0 && newLoyalty >= 70) unlockAchievement('soft');
               if (newLoyalty <= 0 && newSafety >= 70) unlockAchievement('tyrant');
               if (day > 20) unlockAchievement('pro');
-              setGameState('gameover'); vibrate([500, 100, 500]);
+              saveScore(day);
+              setGameState('gameover'); vibratePhone([500, 100, 500]);
               return;
           }
-          setDay(prev => prev + 1);
-          let newDeck = deck.slice(1);
-          if (newDeck.length < 2) newDeck = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
+          
+          const nextDay = day + 1;
+          setDay(nextDay);
+          
+          let newDeck = [...deck];
+          
+          // Эффект Бабочки (добавляем карту-последствие в колоду)
+          if (effects.spawnCard) {
+              const insertIndex = Math.min(newDeck.length, Math.floor(Math.random() * 3) + 1);
+              newDeck.splice(insertIndex, 0, effects.spawnCard);
+          }
+
+          newDeck = newDeck.slice(1);
+          if (newDeck.length < 2) newDeck = [...newDeck, ...ALL_SCENARIOS.sort(() => Math.random() - 0.5)];
+          
+          // Босс-файт каждые 10 дней
+          if (nextDay % 10 === 0) {
+              const bossCard = BOSS_CARDS[Math.floor(Math.random() * BOSS_CARDS.length)];
+              newDeck.unshift(bossCard);
+          }
+
           setDeck(newDeck); setCurrentCard(newDeck[0]); setNextCard(newDeck[1]); setDragPos(0); 
-          if(newDeck[0].isUrgent) setTimeLeft(8);
+          if(newDeck[0].isBoss) setTimeLeft(3); // Босс: 3 секунды
+          else if(newDeck[0].isUrgent) setTimeLeft(8); // Обычный форс-мажор: 8 сек
       }, 3500); 
     };
 
     const callVV = () => {
         if (callUsed || showCallOverlay || feedback) return;
-        vibrate([100, 50, 100]); setCallUsed(true); setShowCallOverlay(true); setStats({ safety: 60, budget: 60, loyalty: 60 });
+        vibratePhone([100, 50, 100]); clearInterval(timerRef.current); setCallUsed(true); setShowCallOverlay(true); setStats({ safety: 60, budget: 60, loyalty: 60 });
     };
 
-    // ФИЗИКА СВАЙПА (ИСПРАВЛЕННАЯ)
     const handlePointerDown = (e) => {
       if(showCallOverlay || feedback) return;
-      setIsDragging(true);
-      setStartX(e.clientX || (e.touches && e.touches[0].clientX));
+      setIsDragging(true); setStartX(e.clientX || (e.touches && e.touches[0].clientX));
       if(cardRef.current) cardRef.current.classList.remove('resetting');
     };
 
     const handlePointerMove = (e) => {
-      // КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Двигается только при зажатом клике
       if (!isDragging || !cardRef.current || feedback || showCallOverlay) return;
       const clientX = e.clientX || (e.touches && e.touches[0].clientX);
       if (!clientX) return;
-      
       const deltaX = clientX - startX;
       setDragPos(Math.min(200, Math.max(-200, deltaX)));
-      
-      if (deltaX > 30) setBgState("swipe-right"); 
-      else if (deltaX < -30) setBgState("swipe-left"); 
-      else setBgState("");
+      if (deltaX > 30) setBgState("swipe-right"); else if (deltaX < -30) setBgState("swipe-left"); else setBgState("");
     };
 
     const handlePointerUp = () => {
       if (!isDragging) return;
-      setIsDragging(false);
-      setBgState("");
+      setIsDragging(false); setBgState("");
       if(cardRef.current) cardRef.current.classList.add('resetting');
-
-      if (dragPos > 100) makeChoice('right'); 
-      else if (dragPos < -100) makeChoice('left'); 
-      else setDragPos(0);
+      if (dragPos > 100) makeChoice('right'); else if (dragPos < -100) makeChoice('left'); else setDragPos(0);
     };
 
     const getFlaskGlow = (val) => val > 60 ? '#10b981' : val > 30 ? '#f59e0b' : '#ef4444';
-    const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 10 ? 'theme-day' : day <= 15 ? 'theme-evening' : 'theme-night';
+    const getTimeClass = () => currentCard?.isBoss ? 'theme-boss' : day <= 5 ? 'theme-morning' : day <= 10 ? 'theme-day' : day <= 15 ? 'theme-evening' : 'theme-night';
 
-    // UI Отрисовка
+    // === ЭКРАН СТАРТА И ГАЛЕРЕИ ===
     if (gameState === 'start') {
       return (
         <div className="flex flex-col items-center justify-center h-screen px-6 text-center animate-fade-in relative theme-morning">
-          <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
-          <div className="grid-overlay"></div><div className="noise"></div>
-          <div className="text-8xl mb-4 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)]">🛡️</div>
-          <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА</h1>
-          <p className="text-xl font-bold text-blue-400 mb-8 uppercase tracking-widest">Симулятор СОТ</p>
-          <button onClick={initGame} className="bg-blue-600 text-white font-black py-5 w-full max-w-xs rounded-full text-xl shadow-[0_0_40px_rgba(37,99,235,0.6)] active:scale-95 uppercase mb-4 border-2 border-blue-400">Начать</button>
-          <button onClick={() => setShowGallery(true)} className="bg-slate-800 text-slate-300 font-bold py-3 w-full max-w-xs rounded-full border border-slate-600 text-sm">🏆 Ачивки ({achievements.length}/6)</button>
+          {showGallery ? (
+            <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col">
+                <button onClick={() => setShowGallery(false)} className="text-slate-400 text-left mb-6 text-xl">← Назад</button>
+                <h2 className="text-2xl font-black text-white mb-6">Рейтинг (Топ 5)</h2>
+                <div className="bg-slate-800 rounded-xl p-4 mb-8">
+                    {leaderboard.length === 0 ? <p className="text-slate-400 text-sm">Сыграйте, чтобы попасть в рейтинг!</p> : leaderboard.map((lb, i) => (
+                        <div key={i} className="flex justify-between border-b border-slate-700 py-2 text-sm"><span className="text-amber-400 font-bold">#{i+1}</span><span className="text-white">{lb.days} смен</span><span className="text-slate-500">{lb.date}</span></div>
+                    ))}
+                </div>
+                <h2 className="text-2xl font-black text-white mb-6">Ачивки</h2>
+                <div className="grid grid-cols-2 gap-4 pb-10">
+                    {ACHIEVEMENTS_LIST.map(ach => {
+                        const isUnlocked = achievements.includes(ach.id);
+                        return (
+                            <div key={ach.id} className={`p-4 rounded-xl border ${isUnlocked ? 'bg-slate-800 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-slate-900 border-slate-700 opacity-50'} flex flex-col items-center text-center transition-all`}>
+                                <div className="text-3xl mb-2">{isUnlocked ? ach.icon : '❓'}</div>
+                                <div className="font-bold text-[11px] text-white mb-1">{isUnlocked ? ach.title : 'Скрыто'}</div>
+                                {isUnlocked && <div className="text-[9px] text-slate-400">{ach.desc}</div>}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+          ) : (
+            <>
+              <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
+              <div className="grid-overlay"></div><div className="noise"></div>
+              <div className="text-8xl mb-4 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)]">🛡️</div>
+              <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА</h1>
+              <p className="text-xl font-bold text-blue-400 mb-8 uppercase tracking-widest">Симулятор СОТ</p>
+              <button onClick={initGame} className="bg-blue-600 text-white font-black py-5 w-full max-w-xs rounded-full text-xl shadow-[0_0_40px_rgba(37,99,235,0.6)] active:scale-95 uppercase mb-4 border-2 border-blue-400">Начать</button>
+              <button onClick={() => {initAudio(); setShowGallery(true)}} className="bg-slate-800 text-slate-300 font-bold py-3 w-full max-w-xs rounded-full border border-slate-600 text-sm">🏆 Рейтинг и Ачивки</button>
+            </>
+          )}
         </div>
       );
     }
@@ -348,19 +464,16 @@
       return (
         <div className="flex flex-col items-center justify-center h-screen px-6 text-center relative z-20 bg-slate-900/95 overflow-hidden">
           <div className="text-7xl mb-4">💀</div><h1 className="text-4xl font-black text-rose-500 uppercase">Игра окончена</h1>
-          <div className="bg-slate-800 border-2 border-rose-900 p-6 rounded-3xl mb-6 max-w-sm"><p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium">{deathReason}</p></div>
+          <div className="bg-slate-800 border-2 border-rose-900 p-6 rounded-3xl mb-6 max-w-sm w-full"><p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium leading-relaxed">{deathReason}</p></div>
           <div className="text-5xl font-black text-blue-400 mb-10">{day} <span className="text-xl">смен</span></div>
           <div className="stamp">УВОЛЕН</div>
           <button onClick={initGame} className="bg-slate-700 text-white font-bold py-4 w-full max-w-xs rounded-2xl mb-4">ЗАНОВО</button>
-          <div id="share-badge-wrap"><div className="badge-logo">🛡️</div><h1 className="badge-title">СМЕНА: СОТ</h1><div className="badge-days" id="badge-days-val">10</div><div className="badge-rank" id="badge-rank-val">Ранг</div></div>
         </div>
       );
     }
 
-    const isCritical = stats.safety < 20 || stats.budget < 20 || stats.loyalty < 20;
-
     return (
-      <div className={`flex flex-col h-screen overflow-hidden relative z-10 transition-all duration-1000 ${getTimeClass()} ${bgState === 'swipe-left' ? 'swipe-left' : bgState === 'swipe-right' ? 'swipe-right' : currentCard?.isUrgent ? 'bg-siren' : ''}`}
+      <div className={`flex flex-col h-screen overflow-hidden relative z-10 transition-all duration-1000 ${getTimeClass()} ${bgState === 'swipe-left' ? 'swipe-left' : bgState === 'swipe-right' ? 'swipe-right' : currentCard?.isUrgent && !currentCard.isBoss ? 'bg-siren' : ''}`}
            onMouseMove={handlePointerMove} onTouchMove={handlePointerMove} onMouseUp={handlePointerUp} onTouchEnd={handlePointerUp} onMouseLeave={handlePointerUp}>
         
         <div className="mesh-container"><div className="blob blob-1 w-[500px] h-[500px] top-[-20%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[450px] h-[450px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '3s'}}></div></div>
@@ -374,7 +487,7 @@
 
         {showCallOverlay && (
             <div className="absolute inset-0 z-50 bg-slate-900/95 flex flex-col items-center justify-center p-8 text-center animate-fade-in">
-                <div className="text-8xl mb-6">👔</div><h2 className="text-3xl font-black text-white mb-4">В.В. на связи</h2>
+                <div className="text-8xl mb-6 filter drop-shadow-lg">👔</div><h2 className="text-3xl font-black text-white mb-4">В.В. на связи</h2>
                 <p className="text-slate-300 text-lg mb-8 leading-relaxed">В.В. уладил дела. Все показатели восстановлены до 60%.<br/><br/><strong className="text-rose-400">"Это в последний раз."</strong></p>
                 <button onClick={() => setShowCallOverlay(false)} className="bg-blue-600 text-white font-black py-4 px-10 rounded-full shadow-[0_0_30px_rgba(37,99,235,0.6)] border-2 border-blue-400">В РАБОТУ</button>
             </div>
@@ -395,8 +508,13 @@
         )}
 
         <div className={`glass-panel p-5 pb-6 rounded-b-[40px] shadow-2xl z-20`}>
-            <div className="flex justify-between items-center mb-6 px-2"><div className="font-black text-3xl text-white tracking-tighter">СМЕНА {day}</div>
-            {currentCard?.isUrgent && !feedback && <div className="text-xl font-black text-rose-500 bg-rose-950 px-5 py-1 rounded-full border-2 border-rose-500 animate-pulse">⏱️ 0:0{timeLeft}</div>}</div>
+            <div className="flex justify-between items-center mb-6 px-2">
+                <div className="font-black text-3xl text-white tracking-tighter">СМЕНА {day}</div>
+                {currentCard?.isUrgent || currentCard?.isBoss ? 
+                    <div className="text-xl font-black text-rose-500 bg-rose-950 px-5 py-1 rounded-full border-2 border-rose-500 animate-pulse">⏱️ 0:0{timeLeft}</div> 
+                    : <div className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-full uppercase tracking-widest border border-slate-600 shadow-inner">Отель</div>
+                }
+            </div>
             <div className="flex justify-between gap-6 px-2">
                 {['safety', 'budget', 'loyalty'].map(s => (
                     <div key={s} className="flex-1 text-center">
@@ -411,21 +529,20 @@
             <div className="card-stack">
                 {nextCard && <div className="next-card flex flex-center items-center justify-center"><div className="text-8xl opacity-20 grayscale">{nextCard.avatar}</div></div>}
                 {currentCard && !feedback && (
-                    <div ref={cardRef} className={`swipe-card cursor-grab active:cursor-grabbing ${currentCard.isUrgent?'urgent':''}`}
+                    <div ref={cardRef} className={`swipe-card cursor-grab active:cursor-grabbing ${currentCard.isUrgent?'urgent':''} ${currentCard.isBoss?'border-yellow-500 shadow-[0_0_50px_rgba(234,179,8,0.8)]':''}`}
                         style={{ transform: `translate(${dragPos}px, ${Math.abs(dragPos)*0.05}px) rotate(${dragPos*0.05}deg) rotateY(${dragPos*0.08}deg) rotateX(${Math.abs(dragPos)*0.03}deg)` }}
                         onMouseDown={handlePointerDown}
                         onTouchStart={handlePointerDown}
                     >
                         <div className="glare" style={{ opacity: Math.min(Math.abs(dragPos)/150, 0.4), background: `linear-gradient(${dragPos*0.5+180}deg, rgba(255,255,255,1) 0%, transparent 60%)` }}></div>
                         
-                        {/* Динамические тексты свайпа на карточке */}
                         <div className="choice-indicator choice-left" style={{opacity: dragPos < -30 ? 1 : 0}}>{currentCard.leftChoice}</div>
                         <div className="choice-indicator choice-right" style={{opacity: dragPos > 30 ? 1 : 0}}>{currentCard.rightChoice}</div>
                         
-                        <div className={`bg-slate-50 rounded-t-[28px] p-8 flex flex-col items-center justify-center border-b h-[45%] ${currentCard.isUrgent?'bg-rose-50':''}`}>
+                        <div className={`bg-slate-50 rounded-t-[28px] p-8 flex flex-col items-center justify-center border-b h-[45%] ${currentCard.isUrgent?'bg-rose-50':''} ${currentCard.isBoss?'bg-yellow-100':''}`}>
                             <div className="text-8xl mb-2 filter drop-shadow-2xl">{currentCard.avatar}</div>
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">{currentCard.character}</h2>
-                            <div className="mt-2 bg-blue-600 text-white px-4 py-1 rounded-full font-black text-[10px] uppercase shadow-lg">{currentCard.role}</div>
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight text-center">{currentCard.character}</h2>
+                            <div className={`mt-2 px-4 py-1 rounded-full font-black text-[10px] uppercase shadow-lg ${currentCard.isBoss?'bg-yellow-500 text-yellow-950':'bg-blue-600 text-white'}`}>{currentCard.role}</div>
                         </div>
                         <div className="p-8 flex-1 flex items-center justify-center bg-white rounded-b-[28px]"><TypewriterText text={currentCard.text} /></div>
                     </div>
@@ -434,7 +551,6 @@
         </div>
 
         <div className="p-6 pb-10 flex justify-between gap-4 z-20">
-            {/* Динамические тексты кнопок внизу */}
             <button onClick={()=>makeChoice('left')} className="flex-1 bg-rose-100/90 text-rose-700 border-b-4 border-rose-300 font-black py-5 px-2 rounded-3xl uppercase text-xs active:scale-95 transition-all flex items-center justify-center leading-tight shadow-lg backdrop-blur-md">{currentCard?.leftChoice || 'ОТКАЗАТЬ'}</button>
             <button onClick={()=>makeChoice('right')} className="flex-1 bg-emerald-100/90 text-emerald-700 border-b-4 border-emerald-300 font-black py-5 px-2 rounded-3xl uppercase text-xs active:scale-95 transition-all flex items-center justify-center leading-tight shadow-lg backdrop-blur-md">{currentCard?.rightChoice || 'РАЗРЕШИТЬ'}</button>
         </div>
