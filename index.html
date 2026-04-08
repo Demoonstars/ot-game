@@ -82,15 +82,16 @@
     .choice-left { color: #e11d48; border-color: #e11d48; }
     .choice-right { color: #10b981; border-color: #10b981; }
 
-    /* КНОПКА ЗВОНКА И ПОДСКАЗКА */
-    .call-btn-container { position: fixed; bottom: 25px; right: 20px; z-index: 50; }
+    /* КНОПКА ЗВОНКА И ПОДСКАЗКА (Смещена в правый верхний угол, ниже панелей) */
+    .call-btn-container { position: fixed; top: 110px; right: 20px; z-index: 50; }
     .call-btn { width: 65px; height: 65px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 10px 30px rgba(59,130,246,0.6); border: 3px solid #93c5fd; transition: transform 0.2s; }
     .call-btn:active { transform: scale(0.9); }
     .call-btn.disabled { filter: grayscale(1); opacity: 0.4; pointer-events: none; }
     
-    .call-hint { position: absolute; bottom: 80px; right: 0; width: 180px; background: #ffffff; color: #1e293b; padding: 12px; border-radius: 16px; font-size: 0.8rem; font-weight: 700; box-shadow: 0 10px 20px rgba(0,0,0,0.3); animation: float 2s infinite ease-in-out; pointer-events: none; }
-    .call-hint::after { content: ''; position: absolute; bottom: -10px; right: 25px; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid #ffffff; }
-    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    /* Подсказка теперь вылезает слева от кнопки */
+    .call-hint { position: absolute; top: 5px; right: 80px; width: 180px; background: #ffffff; color: #1e293b; padding: 12px; border-radius: 16px; font-size: 0.8rem; font-weight: 700; box-shadow: 0 10px 20px rgba(0,0,0,0.3); animation: float 2s infinite ease-in-out; pointer-events: none; }
+    .call-hint::after { content: ''; position: absolute; top: 20px; right: -10px; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 10px solid #ffffff; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
 
     /* ГЛИТЧ И ПЕЧАТЬ */
     .stamp { position: absolute; top: 15%; left: 50%; margin-left: -180px; font-size: 5.5rem; font-weight: 900; color: #e11d48; border: 10px solid #e11d48; padding: 15px 40px; border-radius: 20px; transform: rotate(-15deg); pointer-events: none; z-index: 100; text-shadow: 0 0 15px rgba(225,29,72,0.8); box-shadow: 0 0 30px rgba(225,29,72,0.8), inset 0 0 30px rgba(225,29,72,0.8); animation: stamp-smash 0.5s cubic-bezier(0.1, 2, 0.5, 1) forwards; animation-delay: 3s; opacity: 0; }
@@ -312,7 +313,7 @@
           setFeedback({ text: effects.msg, safety: effects.safety, budget: effects.budget, loyalty: effects.loyalty });
           setBgState("");
           
-          // Задержка фидбека 3.5 секунды перед следующим ходом или проигрышем
+          // Задержка фидбека (ИСПРАВЛЕНО: уменьшено до 2 секунд)
           setTimeout(() => {
               setFeedback(null);
               setSwipingOut(false); // Сбрасываем статус улета
@@ -332,7 +333,7 @@
               if (newDeck.length < 2) newDeck = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
               setDeck(newDeck); setCurrentCard(newDeck[0]); setNextCard(newDeck[1]); setDragPos(0); 
               if(newDeck[0].isUrgent) setTimeLeft(8);
-          }, 3500); 
+          }, 2000); 
       }, 600); // 600мс время анимации улета
     };
 
@@ -375,25 +376,11 @@
     const getFlaskGlow = (val) => val > 60 ? '#10b981' : val > 30 ? '#f59e0b' : '#ef4444';
     const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 10 ? 'theme-day' : day <= 15 ? 'theme-evening' : 'theme-night';
 
-    if (gameState === 'start') {
-      return (
-        <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center animate-fade-in relative theme-morning">
-          <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
-          <div className="grid-overlay"></div><div className="noise"></div>
-          <div className="text-8xl mb-4 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)]">🛡️</div>
-          <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА</h1>
-          <p className="text-xl font-bold text-blue-400 mb-8 uppercase tracking-widest">Симулятор СОТ</p>
-          <button onClick={initGame} className="bg-blue-600 text-white font-black py-5 w-full max-w-xs rounded-full text-xl shadow-[0_0_40px_rgba(37,99,235,0.6)] active:scale-95 uppercase mb-4 border-2 border-blue-400">Начать</button>
-          <button onClick={() => setShowGallery(true)} className="bg-slate-800 text-slate-300 font-bold py-3 w-full max-w-xs rounded-full border border-slate-600 text-sm">🏆 Ачивки ({achievements.length}/6)</button>
-        </div>
-      );
-    }
-
-    // ЭКРАН АЧИВОК
+    // ИСПРАВЛЕНИЕ: ЭКРАН АЧИВОК перенесен ВЫШЕ стартового экрана, 
+    // чтобы он перекрывал все состояния игры и открывался по первому клику.
     if (showGallery) {
         return (
             <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col animate-fade-in">
-                {/* ИСПРАВЛЕНИЕ: Аккуратная текстовая ссылка Назад */}
                 <button onClick={() => setShowGallery(false)} className="bg-transparent border-none text-slate-400 text-left mb-6 text-xl font-bold cursor-pointer p-0 w-max hover:text-white transition-colors">← Назад</button>
                 <h2 className="text-2xl font-black text-white mb-6 tracking-wide">🎖️ Ачивки ({achievements.length}/6)</h2>
                 <div className="grid grid-cols-2 gap-4 pb-10">
@@ -412,6 +399,20 @@
         );
     }
 
+    if (gameState === 'start') {
+      return (
+        <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center animate-fade-in relative theme-morning">
+          <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
+          <div className="grid-overlay"></div><div className="noise"></div>
+          <div className="text-8xl mb-4 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)]">👷</div>
+          <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА</h1>
+          <p className="text-xl font-bold text-blue-400 mb-8 uppercase tracking-widest">Симулятор СОТ</p>
+          <button onClick={initGame} className="bg-blue-600 text-white font-black py-5 w-full max-w-xs rounded-full text-xl shadow-[0_0_40px_rgba(37,99,235,0.6)] active:scale-95 uppercase mb-4 border-2 border-blue-400">Начать</button>
+          <button onClick={() => setShowGallery(true)} className="bg-slate-800 text-slate-300 font-bold py-3 w-full max-w-xs rounded-full border border-slate-600 text-sm">🏆 Ачивки ({achievements.length}/6)</button>
+        </div>
+      );
+    }
+
     if (gameState === 'gameover') {
       return (
         <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative z-20 bg-slate-900/95 overflow-hidden">
@@ -421,7 +422,6 @@
               <p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium leading-relaxed">{deathReason}</p>
           </div>
           
-          {/* ИСПРАВЛЕНИЕ: Вернул количество смен и звание на экран */}
           <div className="text-5xl font-black text-blue-400 mb-4 drop-shadow-lg">{day} <span className="text-xl">смен</span></div>
           <div className="text-sm text-slate-400 mb-8 uppercase tracking-widest bg-slate-800/80 px-6 py-2 rounded-full border border-slate-700 relative z-10 shadow-lg">
             Ваше звание:<br/>
@@ -458,7 +458,7 @@
             </div>
         )}
 
-        {/* МОДАЛКА КОММЕНТАРИЯ (3.5 сек) */}
+        {/* МОДАЛКА КОММЕНТАРИЯ */}
         {feedback && (
             <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in bg-slate-900/80 backdrop-blur-md">
                 <div className="bg-white p-8 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center border-4 border-slate-200 flex flex-col items-center justify-center max-w-sm w-full">
@@ -502,7 +502,6 @@
                         <div className="choice-indicator choice-left" style={{opacity: dragPos < -30 ? 1 : 0}}>{currentCard.leftChoice}</div>
                         <div className="choice-indicator choice-right" style={{opacity: dragPos > 30 ? 1 : 0}}>{currentCard.rightChoice}</div>
                         
-                        {/* ИСПРАВЛЕНИЕ: relative z-10 чтобы бейдж не резался */}
                         <div className={`relative z-10 bg-slate-50 rounded-t-[24px] p-4 flex flex-col items-center justify-center border-b h-[42%] ${currentCard.isUrgent?'bg-rose-50':''}`}>
                             <div className="text-[4.5rem] mb-1 filter drop-shadow-2xl">{currentCard.avatar}</div>
                             <h2 className="text-xl font-black text-slate-800 tracking-tight text-center leading-tight">{currentCard.character}</h2>
