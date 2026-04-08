@@ -64,20 +64,10 @@
     .swipe-card { position: absolute; inset: 0; background: #ffffff; border-radius: 32px; border: 4px solid #e2e8f0; display: flex; flex-direction: column; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6); will-change: transform; transform-style: preserve-3d; }
     .glare { position: absolute; inset: 0; border-radius: 28px; pointer-events: none; transition: opacity 0.2s; z-index: 5; mix-blend-mode: overlay; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 50%); }
 
-    /* ЗАМЕДЛЕННАЯ АНИМАЦИЯ ОТЛЕТА КАРТОЧКИ */
     .resetting { transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    .swiping-out { transition: transform 0.6s ease-out, opacity 0.6s ease-out; opacity: 0; pointer-events: none; }
-
     .next-card { position: absolute; inset: 0; background: #f8fafc; border-radius: 32px; border: 4px solid #cbd5e1; transform: scale(0.92) translateY(20px); opacity: 0.8; z-index: -1; }
 
-    /* ИСПРАВЛЕНИЕ: ЦЕНТРИРОВАННЫЕ БЕЙДЖИ ДЛЯ МОБИЛОК */
-    .choice-indicator { 
-        position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
-        padding: 8px 16px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; 
-        text-transform: uppercase; letter-spacing: 1px; opacity: 0; border: 4px solid; 
-        z-index: 10; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: opacity 0.2s; white-space: nowrap;
-    }
+    .choice-indicator { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); padding: 8px 16px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0; border: 4px solid; z-index: 10; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); white-space: nowrap; transition: opacity 0.2s ease;}
     .choice-left { color: #e11d48; border-color: #e11d48; }
     .choice-right { color: #10b981; border-color: #10b981; }
 
@@ -97,6 +87,9 @@
 
     .particle { position: absolute; pointer-events: none; border-radius: 50%; z-index: 100; animation: fade-out 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
     @keyframes fade-out { 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0); } }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 
     #share-badge-wrap { position: absolute; top: -9999px; left: -9999px; width: 600px; height: 800px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; box-sizing: border-box;}
     .badge-logo { font-size: 5rem; margin-bottom: 20px; } .badge-title { font-size: 3rem; font-weight: 900; margin: 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px;} .badge-sub { font-size: 1.5rem; color: #94a3b8; margin-bottom: 40px; } .badge-days { font-size: 8rem; font-weight: 900; margin: 0; line-height: 1; color: #f8fafc; text-shadow: 0 10px 30px rgba(0,0,0,0.5); } .badge-days-label { font-size: 2rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 40px;} .badge-rank { font-size: 2.5rem; font-weight: 700; color: #fbbf24; background: rgba(255,255,255,0.1); padding: 15px 40px; border-radius: 20px; }
@@ -134,7 +127,6 @@
       }
   };
 
-  // КИНЕТИЧЕСКИЙ ТЕКСТ
   const TypewriterText = ({ text }) => {
       const [displayed, setDisplayed] = useState("");
       useEffect(() => {
@@ -151,11 +143,11 @@
           let res = str;
           words.forEach(w => {
               const regex = new RegExp(`(${w})`, 'gi');
-              res = res.replace(regex, `<span class="text-rose-600 font-black animate-shake inline-block">\$1</span>`);
+              res = res.replace(regex, '<span class="text-rose-600 font-black animate-shake inline-block">$&</span>');
           });
           return { __html: res };
       };
-      return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed" />;
+      return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed relative z-10" />;
   };
 
   const ALL_SCENARIOS = [
@@ -181,6 +173,15 @@
     { isUrgent: false, character: "Медсестра", role: "Медцентр", avatar: "🩹", text: "У нас в трех аптечках на этажах бинты истекают через неделю. Закупить новые сегодня или дотянем до следующего месяца?", leftChoice: "ДОТЯНЕМ", rightChoice: "ЗАКУПИТЬ СЕЙЧАС", onLeft: { safety: -5, budget: 5, loyalty: 0, msg: "Сэкономили копейки. Надеемся, никто серьезно не порежется." }, onRight: { safety: 5, budget: -5, loyalty: 0, msg: "Аптечки обновлены. Бюджет слегка похудел." } }
   ];
 
+  const ACHIEVEMENTS_LIST = [
+        { id: 'greed', icon: '🤑', title: 'Скупой платит дважды', desc: 'Уволен за травмы, хотя бюджет был полон.' },
+        { id: 'tyrant', icon: '⚔️', title: 'Кровавый диктатор', desc: 'Уволен за бунт коллектива при высокой безопасности.' },
+        { id: 'soft', icon: '🧸', title: 'Мамин добряк', desc: 'Разорил отель, пытаясь угодить всем.' },
+        { id: 'slow', icon: '🐢', title: 'Тормоз', desc: 'Не успел принять решение в форс-мажоре.' },
+        { id: 'blat', icon: '☎️', title: 'Блат не спас', desc: 'Звонил В.В., но всё равно провалил смену.' },
+        { id: 'pro', icon: '🏆', title: 'Бог Охраны Труда', desc: 'Продержался более 20 смен.' }
+  ];
+
   function Game() {
     const [gameState, setGameState] = useState('start'); 
     const [day, setDay] = useState(1);
@@ -200,33 +201,34 @@
     const [dragPos, setDragPos] = useState(0);
     const [bgState, setBgState] = useState(""); 
     
-    // Состояние для замедленной анимации отлета
-    const [swipingOut, setSwipingOut] = useState(false);
-    
     const timerRef = useRef(null);
     const cardRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
 
     useEffect(() => {
-        const saved = JSON.parse(localStorage.getItem('smena_achievements') || '[]');
-        setAchievements(saved);
+        try {
+            setAchievements(JSON.parse(localStorage.getItem('smena_achievements') || '[]'));
+        } catch(e) {}
     }, []);
 
-    // Подсказка звонка В.В. (если любой параметр ниже 40%)
+    // Подсказка звонка В.В. исчезает через 3.5 секунды
     useEffect(() => {
+        let hintTimer;
         if (!callUsed && gameState === 'playing' && (stats.safety < 40 || stats.budget < 40 || stats.loyalty < 40)) {
             setShowCallHint(true);
+            hintTimer = setTimeout(() => setShowCallHint(false), 3500);
         } else {
             setShowCallHint(false);
         }
-    }, [stats, callUsed, gameState]);
+        return () => clearTimeout(hintTimer);
+    }, [stats.safety, stats.budget, stats.loyalty, callUsed, gameState]);
 
     const unlockAchievement = (id) => {
         setAchievements(prev => {
             if (prev.includes(id)) return prev;
             const newArr = [...prev, id];
-            localStorage.setItem('smena_achievements', JSON.stringify(newArr));
+            try { localStorage.setItem('smena_achievements', JSON.stringify(newArr)); } catch(e) {}
             return newArr;
         });
     };
@@ -242,7 +244,7 @@
     const initGame = () => {
       vibrate(50);
       setStats({ safety: 50, budget: 50, loyalty: 50 });
-      setDay(1); setCallUsed(false); setFeedback(null); setSwipingOut(false);
+      setDay(1); setCallUsed(false); setFeedback(null);
       const shuffled = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
       setDeck(shuffled);
       setCurrentCard(shuffled[0]);
@@ -259,9 +261,8 @@
         vibrate([500, 200, 500]);
     };
 
-    // Таймер форс-мажора
     useEffect(() => {
-        if (gameState === 'playing' && currentCard?.isUrgent && !showCallOverlay && !feedback && !swipingOut) {
+        if (gameState === 'playing' && currentCard?.isUrgent && !showCallOverlay && !feedback) {
             timerRef.current = setInterval(() => {
                 setTimeLeft(prev => {
                     if (prev <= 1) { clearInterval(timerRef.current); handleTimeout(); return 0; }
@@ -270,18 +271,14 @@
             }, 1000);
             return () => clearInterval(timerRef.current);
         }
-    }, [gameState, currentCard, showCallOverlay, feedback, swipingOut]);
+    }, [gameState, currentCard, showCallOverlay, feedback]);
 
     const makeChoice = (direction) => {
-      if (showCallOverlay || feedback || swipingOut) return;
+      if (showCallOverlay || feedback) return;
       clearInterval(timerRef.current);
       vibrate(40); burstParticles(direction); 
-      setIsDragging(false); // На всякий случай сбрасываем драг
+      setIsDragging(false);
       
-      // АНИМАЦИЯ ОТЛЕТА КАРТОЧКИ (0.6 сек)
-      setSwipingOut(true);
-      setDragPos(direction === 'left' ? -400 : 400);
-
       const effects = direction === 'left' ? currentCard.onLeft : currentCard.onRight;
       const newSafety = Math.min(100, Math.max(0, stats.safety + effects.safety));
       const newBudget = Math.min(100, Math.max(0, stats.budget + effects.budget));
@@ -289,52 +286,44 @@
 
       setFlash({ safety: newSafety < stats.safety, budget: newBudget < stats.budget, loyalty: newLoyalty < stats.loyalty });
       setStats({ safety: newSafety, budget: newBudget, loyalty: newLoyalty });
+      setFeedback({ text: effects.msg, safety: effects.safety, budget: effects.budget, loyalty: effects.loyalty });
+      setBgState("");
       
-      // Ждем 0.6 сек, пока карточка плавно улетает, затем показываем фидбек
       setTimeout(() => {
-          setFeedback({ text: effects.msg, safety: effects.safety, budget: effects.budget, loyalty: effects.loyalty });
-          setBgState("");
-          
-          // Задержка фидбека 3.5 секунды перед следующим ходом или проигрышем
-          setTimeout(() => {
-              setFeedback(null);
-              setSwipingOut(false); // Сбрасываем статус улета
-
-              if (newSafety <= 0 || newBudget <= 0 || newLoyalty <= 0) {
-                  let res = newSafety <= 0 ? "Тяжелый НС всплыл в прокуратуре." : newBudget <= 0 ? "Вы разорили отель закупками." : "Рабочие устроили бунт.";
-                  setDeathReason(`ПОСЛЕДНЕЕ РЕШЕНИЕ:\n${effects.msg}\n\nВЕРДИКТ:\n${res}`);
-                  if (newSafety <= 0 && newBudget >= 70) unlockAchievement('greed');
-                  if (newBudget <= 0 && newLoyalty >= 70) unlockAchievement('soft');
-                  if (newLoyalty <= 0 && newSafety >= 70) unlockAchievement('tyrant');
-                  if (day > 20) unlockAchievement('pro');
-                  setGameState('gameover'); vibrate([500, 100, 500]);
-                  return;
-              }
-              setDay(prev => prev + 1);
-              let newDeck = deck.slice(1);
-              if (newDeck.length < 2) newDeck = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
-              setDeck(newDeck); setCurrentCard(newDeck[0]); setNextCard(newDeck[1]); setDragPos(0); 
-              if(newDeck[0].isUrgent) setTimeLeft(8);
-          }, 3500); 
-      }, 600); // 600мс время анимации улета
+          setFeedback(null);
+          if (newSafety <= 0 || newBudget <= 0 || newLoyalty <= 0) {
+              let res = newSafety <= 0 ? "Тяжелый НС всплыл в прокуратуре." : newBudget <= 0 ? "Вы разорили отель закупками." : "Рабочие устроили бунт.";
+              setDeathReason(`ПОСЛЕДНЕЕ РЕШЕНИЕ:\n${effects.msg}\n\nВЕРДИКТ:\n${res}`);
+              if (newSafety <= 0 && newBudget >= 70) unlockAchievement('greed');
+              if (newBudget <= 0 && newLoyalty >= 70) unlockAchievement('soft');
+              if (newLoyalty <= 0 && newSafety >= 70) unlockAchievement('tyrant');
+              if (callUsed) unlockAchievement('blat');
+              if (day > 20) unlockAchievement('pro');
+              setGameState('gameover'); vibrate([500, 100, 500]);
+              return;
+          }
+          setDay(prev => prev + 1);
+          let newDeck = deck.slice(1);
+          if (newDeck.length < 2) newDeck = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
+          setDeck(newDeck); setCurrentCard(newDeck[0]); setNextCard(newDeck[1]); setDragPos(0); 
+          if(newDeck[0].isUrgent) setTimeLeft(8);
+      }, 3500); 
     };
 
     const callVV = () => {
-        if (callUsed || showCallOverlay || feedback || swipingOut) return;
-        vibrate([100, 50, 100]); setCallUsed(true); setShowCallOverlay(true); setStats({ safety: 60, budget: 60, loyalty: 60 });
+        if (callUsed || showCallOverlay || feedback) return;
+        vibrate([100, 50, 100]); clearInterval(timerRef.current); setCallUsed(true); setShowCallOverlay(true); setStats({ safety: 60, budget: 60, loyalty: 60 });
     };
 
-    // ФИЗИКА СВАЙПА
     const handlePointerDown = (e) => {
-      if(showCallOverlay || feedback || swipingOut) return;
+      if(showCallOverlay || feedback) return;
       setIsDragging(true);
       setStartX(e.clientX || (e.touches && e.touches[0].clientX));
       if(cardRef.current) cardRef.current.classList.remove('resetting');
     };
 
     const handlePointerMove = (e) => {
-      // КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Двигается только при зажатом клике
-      if (!isDragging || !cardRef.current || feedback || showCallOverlay || swipingOut) return;
+      if (!isDragging || !cardRef.current || feedback || showCallOverlay) return;
       const clientX = e.clientX || (e.touches && e.touches[0].clientX);
       if (!clientX) return;
       
@@ -360,7 +349,28 @@
     const getFlaskGlow = (val) => val > 60 ? '#10b981' : val > 30 ? '#f59e0b' : '#ef4444';
     const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 10 ? 'theme-day' : day <= 15 ? 'theme-evening' : 'theme-night';
 
-    // UI Отрисовка
+    // ЭКРАН АЧИВОК
+    if (showGallery) {
+        return (
+            <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col animate-fade-in">
+                <button onClick={() => setShowGallery(false)} className="text-slate-400 text-left mb-6 text-xl font-bold">← Назад</button>
+                <h2 className="text-2xl font-black text-white mb-6 tracking-wide">🎖️ Ачивки ({achievements.length}/6)</h2>
+                <div className="grid grid-cols-2 gap-4 pb-10">
+                    {ACHIEVEMENTS_LIST.map(ach => {
+                        const isUnlocked = achievements.includes(ach.id);
+                        return (
+                            <div key={ach.id} className={`p-4 rounded-xl border ${isUnlocked ? 'bg-slate-800 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-slate-900 border-slate-700 opacity-50'} flex flex-col items-center text-center transition-all`}>
+                                <div className="text-4xl mb-3">{isUnlocked ? ach.icon : '❓'}</div>
+                                <div className="font-bold text-[12px] text-white mb-1 uppercase tracking-wider leading-tight">{isUnlocked ? ach.title : 'Скрыто'}</div>
+                                {isUnlocked && <div className="text-[10px] text-slate-400 leading-tight mt-1">{ach.desc}</div>}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        );
+    }
+
     if (gameState === 'start') {
       return (
         <div className="flex flex-col items-center justify-center h-screen px-6 text-center animate-fade-in relative theme-morning">
@@ -378,12 +388,12 @@
     if (gameState === 'gameover') {
       return (
         <div className="flex flex-col items-center justify-center h-screen px-6 text-center relative z-20 bg-slate-900/95 overflow-hidden">
-          <div className="glitch-wrapper"><div className="text-7xl mb-4">💀</div><h1 className="text-4xl font-black text-rose-500 uppercase">Игра окончена</h1>
-          <div className="bg-slate-800 border-2 border-rose-900 p-6 rounded-3xl mb-6 max-w-sm w-full"><p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium">{deathReason}</p></div>
-          <div className="text-5xl font-black text-blue-400 mb-10">{day} <span className="text-xl">смен</span></div></div>
+          <div className="text-7xl mb-4">💀</div><h1 className="text-4xl font-black text-rose-500 uppercase">Игра окончена</h1>
+          <div className="bg-slate-800 border-2 border-rose-900 p-6 rounded-3xl mb-6 max-w-sm"><p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium">{deathReason}</p></div>
+          <div className="text-5xl font-black text-blue-400 mb-10">{day} <span className="text-xl">смен</span></div>
           <div className="stamp">УВОЛЕН</div>
-          <button onClick={initGame} className="bg-slate-700 text-white font-bold py-4 w-full max-w-xs rounded-2xl mb-4 z-50 relative">ЗАНОВО</button>
-          <div id="share-badge-wrap"><div className="badge-logo">🛡️</div><h1 className="badge-title">СМЕНА: СОТ</h1><div className="badge-days" id="badge-days-val">10</div><div className="badge-rank" id="badge-rank-val">Ранг</div></div>
+          <button onClick={initGame} className="bg-slate-700 text-white font-bold py-4 w-full max-w-xs rounded-2xl mb-4 relative z-50">ЗАНОВО</button>
+          <button onClick={() => setShowGallery(true)} className="bg-slate-800 text-slate-300 font-bold py-3 w-full max-w-xs rounded-2xl border border-slate-600 text-sm relative z-50">🏆 Ачивки ({achievements.length}/6)</button>
         </div>
       );
     }
@@ -413,9 +423,9 @@
 
         {feedback && (
             <div className="absolute inset-0 z-[60] flex items-center justify-center p-6 animate-fade-in bg-slate-900/80 backdrop-blur-md">
-                <div className="bg-white p-10 rounded-[40px] shadow-2xl text-center border-4 border-slate-200 flex flex-col items-center max-w-sm w-full">
-                    <p className="text-slate-900 font-black text-2xl mb-8 leading-relaxed">{feedback.text}</p>
-                    <div className="flex gap-8 font-black text-xl">
+                <div className="bg-white p-8 rounded-[32px] shadow-2xl text-center border-4 border-slate-200 flex flex-col items-center justify-center max-w-sm w-full">
+                    <p className="text-slate-900 font-black text-xl mb-8 leading-relaxed">{feedback.text}</p>
+                    <div className="flex gap-8 font-black text-2xl">
                         {feedback.safety !== 0 && <span className={feedback.safety > 0 ? 'text-emerald-500' : 'text-rose-500'}>🛡️ {feedback.safety > 0 ? '+' : ''}{feedback.safety}</span>}
                         {feedback.budget !== 0 && <span className={feedback.budget > 0 ? 'text-emerald-500' : 'text-rose-500'}>💰 {feedback.budget > 0 ? '+' : ''}{feedback.budget}</span>}
                         {feedback.loyalty !== 0 && <span className={feedback.loyalty > 0 ? 'text-emerald-500' : 'text-rose-500'}>🤝 {feedback.loyalty > 0 ? '+' : ''}{feedback.loyalty}</span>}
@@ -442,7 +452,7 @@
                 {nextCard && <div className="next-card flex flex-center items-center justify-center"><div className="text-8xl opacity-20 grayscale">{nextCard.avatar}</div></div>}
                 
                 {currentCard && !feedback && (
-                    <div ref={cardRef} className={`swipe-card cursor-grab active:cursor-grabbing ${currentCard.isUrgent?'urgent':''} ${swipingOut ? 'swiping-out' : ''} ${!isDragging && !swipingOut ? 'resetting' : ''}`}
+                    <div ref={cardRef} className={`swipe-card cursor-grab active:cursor-grabbing ${currentCard.isUrgent?'urgent':''}`}
                         style={{ transform: `translate(${dragPos}px, ${Math.abs(dragPos)*0.05}px) rotate(${dragPos*0.05}deg) rotateY(${dragPos*0.08}deg) rotateX(${Math.abs(dragPos)*0.03}deg)` }}
                         onMouseDown={handlePointerDown}
                         onTouchStart={handlePointerDown}
@@ -463,9 +473,9 @@
             </div>
         </div>
 
-        <div className="p-6 pb-10 flex justify-between gap-4 z-20">
-            <button onClick={()=>makeChoice('left')} className="flex-1 bg-rose-100/90 text-rose-700 border-b-4 border-rose-300 font-black py-5 px-2 rounded-3xl uppercase text-xs active:scale-95 transition-all flex items-center justify-center leading-tight shadow-lg backdrop-blur-md">{currentCard?.leftChoice || 'ОТКАЗАТЬ'}</button>
-            <button onClick={()=>makeChoice('right')} className="flex-1 bg-emerald-100/90 text-emerald-700 border-b-4 border-emerald-300 font-black py-5 px-2 rounded-3xl uppercase text-xs active:scale-95 transition-all flex items-center justify-center leading-tight shadow-lg backdrop-blur-md">{currentCard?.rightChoice || 'РАЗРЕШИТЬ'}</button>
+        <div className="p-4 pb-8 w-full max-w-[360px] mx-auto flex justify-between gap-3 z-20">
+            <button onClick={()=>makeChoice('left')} className="flex-1 bg-rose-100/90 text-rose-700 border-b-4 border-rose-300 font-black py-3 px-1 rounded-2xl uppercase text-[10px] sm:text-[11px] active:scale-95 transition-all flex items-center justify-center leading-tight shadow-lg backdrop-blur-md text-center min-h-[56px]">{currentCard?.leftChoice || 'ОТКАЗАТЬ'}</button>
+            <button onClick={()=>makeChoice('right')} className="flex-1 bg-emerald-100/90 text-emerald-700 border-b-4 border-emerald-300 font-black py-3 px-1 rounded-2xl uppercase text-[10px] sm:text-[11px] active:scale-95 transition-all flex items-center justify-center leading-tight shadow-lg backdrop-blur-md text-center min-h-[56px]">{currentCard?.rightChoice || 'РАЗРЕШИТЬ'}</button>
         </div>
       </div>
     );
