@@ -103,50 +103,6 @@
   const { useState, useEffect, useRef } = React;
   const { createRoot } = ReactDOM;
 
-  // --- БЕЗОПАСНЫЙ ЗВУКОВОЙ ДВИЖОК (Не ломает iOS/Android) ---
-  const audioCtx = useRef(null);
-  const masterGain = useRef(null);
-
-  const initAudio = () => {
-      try {
-          if (!audioCtx.current) {
-              const AudioContext = window.AudioContext || window.webkitAudioContext;
-              if (AudioContext) {
-                  audioCtx.current = new AudioContext();
-                  masterGain.current = audioCtx.current.createGain();
-                  masterGain.current.gain.value = 0.15;
-                  masterGain.current.connect(audioCtx.current.destination);
-              }
-          }
-          if (audioCtx.current && audioCtx.current.state === 'suspended') {
-              audioCtx.current.resume();
-          }
-      } catch(e) { console.warn("Аудио недоступно", e); }
-  };
-
-  const playTone = (freq, type, duration, vol=1, slideFreq=null) => {
-      if (!audioCtx.current || audioCtx.current.state !== 'running') return;
-      try {
-          const osc = audioCtx.current.createOscillator();
-          const gain = audioCtx.current.createGain();
-          osc.type = type;
-          osc.frequency.setValueAtTime(freq, audioCtx.current.currentTime);
-          if (slideFreq) osc.frequency.exponentialRampToValueAtTime(slideFreq, audioCtx.current.currentTime + duration);
-          gain.gain.setValueAtTime(vol, audioCtx.current.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.current.currentTime + duration);
-          osc.connect(gain);
-          gain.connect(masterGain.current);
-          osc.start();
-          osc.stop(audioCtx.current.currentTime + duration);
-      } catch(e) {}
-  };
-
-  const playSwipeSound = () => playTone(300, 'sine', 0.15, 0.5, 150);
-  const playDamageSound = () => playTone(100, 'sawtooth', 0.4, 0.8, 50);
-  const playHeartbeatTone = () => { playTone(55, 'sine', 0.15, 1); setTimeout(() => playTone(55, 'sine', 0.15, 0.8), 250); };
-  const playBossSound = () => playTone(400, 'square', 0.5, 0.3, 200);
-  const playGameOver = () => playTone(200, 'sawtooth', 1.5, 0.8, 50);
-
   const vibratePhone = (pattern) => {
     if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.vibrate) {
       window.navigator.vibrate(pattern);
@@ -171,7 +127,7 @@
       }
   };
 
-  // КИНЕТИЧЕСКИЙ ТЕКСТ С ВЫДЕЛЕНИЕМ (ИСПРАВЛЕНО ДЛЯ BABEL)
+  // КИНЕТИЧЕСКИЙ ТЕКСТ С ВЫДЕЛЕНИЕМ (БЕЗ ОШИБКИ БАБЕЛЯ)
   const TypewriterText = ({ text }) => {
       const [displayed, setDisplayed] = useState("");
       useEffect(() => {
@@ -188,7 +144,6 @@
           let res = str;
           words.forEach(w => {
               const regex = new RegExp(`(${w})`, 'gi');
-              // Безопасная конкатенация строк для Babel
               res = res.replace(regex, '<span class="text-rose-600 font-black animate-shake inline-block">$1</span>');
           });
           return { __html: res };
@@ -260,7 +215,6 @@
     
     const [timeLeft, setTimeLeft] = useState(8);
     const timerRef = useRef(null);
-    const heartbeatRef = useRef(null);
 
     const [callUsed, setCallUsed] = useState(false);
     const [showCallOverlay, setShowCallOverlay] = useState(false);
@@ -284,15 +238,6 @@
             setLeaderboard(JSON.parse(localStorage.getItem('smena_leaderboard') || '[]'));
         } catch(e) { console.warn('LS error'); }
     }, []);
-
-    useEffect(() => {
-        if (isCritical && gameState === 'playing' && !showCallOverlay && !feedback) {
-            heartbeatRef.current = setInterval(() => playHeartbeatTone(), 1200);
-        } else {
-            clearInterval(heartbeatRef.current);
-        }
-        return () => clearInterval(heartbeatRef.current);
-    }, [isCritical, gameState, showCallOverlay, feedback]);
 
     useEffect(() => {
         if (!callUsed && gameState === 'playing' && (stats.safety < 40 || stats.budget < 40 || stats.loyalty < 40)) {
@@ -329,7 +274,6 @@
     };
 
     const initGame = () => {
-      initAudio();
       vibratePhone(50);
       setStats({ safety: 50, budget: 50, loyalty: 50 });
       setDay(1); setCallUsed(false); setFeedback(null);
@@ -348,9 +292,9 @@
         saveScore(day);
         setGameState('gameover');
         vibratePhone([500, 200, 500]);
-        playGameOver();
     };
 
+    // Таймер
     useEffect(() => {
         if (gameState === 'playing' && (currentCard?.isUrgent || currentCard?.isBoss) && !showCallOverlay && !feedback) {
             timerRef.current = setInterval(() => {
@@ -366,7 +310,6 @@
     const makeChoice = (direction) => {
       if (showCallOverlay || feedback) return;
       clearInterval(timerRef.current);
-      playSwipeSound();
       burstParticles(direction); 
       setIsDragging(false); 
       
@@ -374,8 +317,6 @@
       const newSafety = Math.min(100, Math.max(0, stats.safety + effects.safety));
       const newBudget = Math.min(100, Math.max(0, stats.budget + effects.budget));
       const newLoyalty = Math.min(100, Math.max(0, stats.loyalty + effects.loyalty));
-
-      if (newSafety < stats.safety || newBudget < stats.budget || newLoyalty < stats.loyalty) playDamageSound();
 
       setFlash({ safety: newSafety < stats.safety, budget: newBudget < stats.budget, loyalty: newLoyalty < stats.loyalty });
       setStats({ safety: newSafety, budget: newBudget, loyalty: newLoyalty });
@@ -393,7 +334,7 @@
               if (newLoyalty <= 0 && newSafety >= 70) unlockAchievement('tyrant');
               if (day > 20) unlockAchievement('pro');
               saveScore(day);
-              setGameState('gameover'); vibratePhone([500, 100, 500]); playGameOver();
+              setGameState('gameover'); vibratePhone([500, 100, 500]);
               return;
           }
           
@@ -415,7 +356,6 @@
           if (nextDay % 10 === 0) {
               const bossCard = BOSS_CARDS[Math.floor(Math.random() * BOSS_CARDS.length)];
               newDeck.unshift(bossCard);
-              playBossSound();
           }
 
           setDeck(newDeck); setCurrentCard(newDeck[0]); setNextCard(newDeck[1]); setDragPos(0); 
@@ -431,7 +371,6 @@
 
     const handlePointerDown = (e) => {
       if(showCallOverlay || feedback) return;
-      initAudio(); // Безопасное возобновление аудио при тапе
       setIsDragging(true); setStartX(e.clientX || (e.touches && e.touches[0].clientX));
       if(cardRef.current) cardRef.current.classList.remove('resetting');
     };
@@ -499,7 +438,7 @@
               <h1 className="text-6xl font-black text-white mb-2 tracking-tighter drop-shadow-lg">СМЕНА</h1>
               <p className="text-xl font-bold text-blue-400 mb-8 uppercase tracking-widest drop-shadow-md">Симулятор СОТ</p>
               <button onClick={initGame} className="bg-blue-600 text-white font-black py-5 w-full max-w-xs rounded-full text-xl shadow-[0_0_40px_rgba(37,99,235,0.6)] active:scale-95 uppercase mb-5 border-2 border-blue-400 tracking-wider">Начать</button>
-              <button onClick={() => {initAudio(); setShowGallery(true)}} className="bg-slate-800/80 text-slate-200 font-bold py-4 w-full max-w-xs rounded-full border border-slate-600 text-sm backdrop-blur-md">🏆 Рейтинг и Ачивки</button>
+              <button onClick={() => setShowGallery(true)} className="bg-slate-800/80 text-slate-200 font-bold py-4 w-full max-w-xs rounded-full border border-slate-600 text-sm backdrop-blur-md">🏆 Рейтинг и Ачивки</button>
             </>
           )}
         </div>
