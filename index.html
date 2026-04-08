@@ -14,189 +14,189 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
     /* === БАЗОВЫЕ СТИЛИ ДЛЯ ИГРЫ === */
-    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: pan-y; }
     body { 
         margin: 0; padding: 0; 
         background-color: #0f172a; 
         color: #f8fafc; 
         font-family: system-ui, -apple-system, sans-serif;
-        overflow: hidden; /* Запрещаем скролл страницы */
-        touch-action: none; /* Запрещаем стандартные свайпы браузера */
+        overflow: hidden; 
     }
 
+    /* Динамический фон */
     .game-bg {
         position: fixed; inset: 0; z-index: -1;
         background: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 100%);
+        transition: background-color 0.3s ease;
     }
+    .game-bg.swipe-left { background-color: rgba(225, 29, 72, 0.2); }
+    .game-bg.swipe-right { background-color: rgba(16, 185, 129, 0.2); }
 
     .glass-panel {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
     /* Анимации */
     @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
-    
-    @keyframes pulse-soft { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-    .animate-pulse-soft { animation: pulse-soft 2s infinite; }
 
     /* Прогресс-бары */
-    .stat-bar-container { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; margin-top: 4px;}
+    .stat-bar-container { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; margin-top: 6px;}
     .stat-bar-fill { height: 100%; transition: width 0.3s ease, background-color 0.3s ease; }
 
-    /* Стили для карточки при свайпе */
+    /* Стили для карточек */
+    .card-stack { position: relative; width: 100%; max-width: 340px; aspect-ratio: 3/4; margin: 0 auto; perspective: 1000px; }
+    
     .swipe-card {
-        transition: transform 0.1s;
-        will-change: transform;
+        position: absolute; inset: 0;
+        background: #ffffff; border-radius: 32px; border: 4px solid #e2e8f0;
+        display: flex; flex-direction: column;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    }
-    .swipe-card.resetting {
-        transition: transform 0.3s ease-out;
+        will-change: transform;
     }
     
-    /* Индикаторы выбора на карточке (Появляются при натяжении) */
-    .choice-indicator {
-        position: absolute; top: 20px; padding: 8px 16px; border-radius: 8px; font-weight: 900; font-size: 1.2rem;
-        text-transform: uppercase; letter-spacing: 1px; opacity: 0; border: 4px solid; z-index: 10;
+    /* Анимация возврата карточки */
+    .resetting { transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+    /* Задняя карточка (для эффекта колоды) */
+    .next-card {
+        position: absolute; inset: 0;
+        background: #f8fafc; border-radius: 32px; border: 4px solid #cbd5e1;
+        transform: scale(0.92) translateY(20px);
+        opacity: 0.8; z-index: -1;
     }
-    .choice-left { right: 20px; color: #ef4444; border-color: #ef4444; transform: rotate(15deg); }
+
+    /* Индикаторы выбора на карточке */
+    .choice-indicator {
+        position: absolute; top: 30px; padding: 10px 20px; border-radius: 12px; font-weight: 900; font-size: 1.4rem;
+        text-transform: uppercase; letter-spacing: 2px; opacity: 0; border: 4px solid; z-index: 10;
+        background: rgba(255,255,255,0.9); backdrop-filter: blur(4px);
+    }
+    .choice-left { right: 20px; color: #e11d48; border-color: #e11d48; transform: rotate(15deg); }
     .choice-right { left: 20px; color: #10b981; border-color: #10b981; transform: rotate(-15deg); }
+    
+    /* Скрытие скроллбара */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body>
 
-<div class="game-bg"></div>
 <div id="game-root"></div>
 
 <script type="text/babel">
   const { useState, useEffect, useRef } = React;
   const { createRoot } = ReactDOM;
 
-  // Аудио и вибрация
+  // Вибрация для телефонов
   const vibrate = (pattern) => {
     if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.vibrate) {
       window.navigator.vibrate(pattern);
     }
   };
 
-  // --- БАЗА СЦЕНАРИЕВ (Тестовая выборка) ---
-  const INITIAL_SCENARIOS = [
-    {
-      character: "Мастер Петрович",
-      role: "Начальник цеха",
-      avatar: "👷‍♂️",
-      text: "У нас горит план! Дай добро запустить пресс без защитного экрана, мы аккуратно. Я лично прослежу, иначе премии всех лишат!",
-      leftChoice: "ЗАПРЕТИТЬ",
-      rightChoice: "РАЗРЕШИТЬ",
-      onLeft: { safety: 10, budget: -15, loyalty: -10, msg: "План сорван, но все живы." },
-      onRight: { safety: -30, budget: 15, loyalty: 10, msg: "План выполнен, но рабочий чуть не лишился пальцев." }
-    },
-    {
-      character: "Генеральный",
-      role: "Директор",
-      avatar: "👔",
-      text: "Слушай, у нас кассовый разрыв. Давай в этом квартале закупим дешевые китайские каски и ботинки вместо сертифицированных?",
-      leftChoice: "ВОЗРАЗИТЬ",
-      rightChoice: "СОГЛАСИТЬСЯ",
-      onLeft: { safety: 10, budget: -20, loyalty: 5, msg: "Директор недоволен, но защита надежная." },
-      onRight: { safety: -25, budget: 20, loyalty: -15, msg: "Бюджет спасен. Рабочие жалуются на мозоли и трещины." }
-    },
-    {
-      character: "Стажер Макс",
-      role: "Разнорабочий",
-      avatar: "🤕",
-      text: "Жарко в этой каске, сил нет! Можно я сниму на часок? Тут всё равно сверху ничего не падает, я проверял.",
-      leftChoice: "ОШТРАФОВАТЬ",
-      rightChoice: "ЗАКРЫТЬ ГЛАЗА",
-      onLeft: { safety: 5, budget: 5, loyalty: -20, msg: "Стажер обиделся, коллеги считают вас тираном." },
-      onRight: { safety: -20, budget: 0, loyalty: 15, msg: "Стажер счастлив. До первого падающего болта." }
-    },
-    {
-      character: "Иван Сергеевич",
-      role: "Инспектор ГИТ",
-      avatar: "🕵️‍♂️",
-      text: "Добрый день. У вас тут в журнале инструктажей подписей не хватает за прошлый месяц. Будем оформлять предписание?",
-      leftChoice: "ИДТИ В ОТКАЗ",
-      rightChoice: "ДОГОВОРИТЬСЯ",
-      onLeft: { safety: -10, budget: -25, loyalty: 0, msg: "Получили официальный штраф на компанию." },
-      onRight: { safety: 0, budget: -15, loyalty: -10, msg: "Решили вопрос 'малой кровью', но осадок остался." }
-    },
-    {
-      character: "Светлана",
-      role: "Бухгалтер",
-      avatar: "👩‍💼",
-      text: "Мы забыли отправить трех водителей на медосмотр. Если отправим сейчас, придется снимать их с рейсов на два дня. Что делаем?",
-      leftChoice: "ОТСТРАНИТЬ",
-      rightChoice: "ПУСТЬ ЕДУТ",
-      onLeft: { safety: 15, budget: -20, loyalty: -5, msg: "Рейсы сорваны, зато по закону всё чисто." },
-      onRight: { safety: -35, budget: 10, loyalty: 5, msg: "Водитель уснул за рулем. Огромные проблемы." }
-    },
-    {
-      character: "Бригада",
-      role: "Монтажники",
-      avatar: "👥",
-      text: "Мы не пойдем чистить крышу без нормальных страховочных привязей! Эти старые пояса уже гнилые!",
-      leftChoice: "УГРОЖАТЬ",
-      rightChoice: "КУПИТЬ НОВЫЕ",
-      onLeft: { safety: -20, budget: 0, loyalty: -30, msg: "Назревает забастовка и жалоба в прокуратуру." },
-      onRight: { safety: 15, budget: -25, loyalty: 20, msg: "Рабочие довольны, но бюджет трещит по швам." }
-    }
+  // --- БАЗА СЦЕНАРИЕВ (30 ШТУК ДЛЯ ПАРК-ОТЕЛЯ) ---
+  const ALL_SCENARIOS = [
+    // АХО и Территория
+    { character: "Начальник АХО", role: "Эксплуатация", avatar: "🧹", text: "Окна главного корпуса грязные, а завтра VIP-заезд. Альпинисты не успевают. Давай я своих ребят на стремянках отправлю? Там всего 3 этажа.", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "РАЗРЕШИТЬ", onLeft: { safety: 15, budget: -10, loyalty: -15, msg: "VIP-гости недовольны окнами, АХО злится." }, onRight: { safety: -35, budget: 10, loyalty: 5, msg: "Техник сорвался со стремянки. У вас огромные проблемы." } },
+    { character: "Старший садовник", role: "Благоустройство", avatar: "🌿", text: "Начался дождь, а газон не дострижен. Электрокосилки мокнут, ребят током пощипывает. Но если не докосим — штраф от директора.", leftChoice: "ОСТАНОВИТЬ", rightChoice: "ДОКОСИТЬ", onLeft: { safety: 20, budget: -15, loyalty: -5, msg: "Газон кривой, директор в ярости." }, onRight: { safety: -40, budget: 10, loyalty: 5, msg: "Короткое замыкание. Рабочий в реанимации." } },
+    { character: "Главный Инженер", role: "Служба эксплуатации", avatar: "🔧", text: "В бассейне откололась плитка. Воду сливать долго и дорого. Я могу в акваланге нырнуть и спец-клеем замазать под водой!", leftChoice: "СЛИТЬ ВОДУ", rightChoice: "НЫРЯЙ", onLeft: { safety: 10, budget: -25, loyalty: -15, msg: "Бассейн закрыт на 2 дня, гости требуют компенсации." }, onRight: { safety: -30, budget: 15, loyalty: 10, msg: "Инженер надышался парами клея под водой. Инцидент." } },
+    { character: "Плотник", role: "АХО", avatar: "🪚", text: "Нужно спилить сухие ветки над парковкой. Вышку заказывать дорого. Я привяжусь веревкой к стволу и спилю бензопилой, я 100 раз так делал.", leftChoice: "ЖДАТЬ ВЫШКУ", rightChoice: "ПИЛИ", onLeft: { safety: 15, budget: -20, loyalty: -10, msg: "Бюджет потрачен на вышку." }, onRight: { safety: -40, budget: 15, loyalty: 5, msg: "Ветка упала на плотника. Тяжелая травма." } },
+    { character: "Дворник", role: "Территория", avatar: "❄️", text: "Лед на дорожках! Соль закончилась. Есть гранитная крошка, но она царапает дорогой мрамор в лобби, когда гости её заносят на обуви.", leftChoice: "ЖДАТЬ СОЛЬ", rightChoice: "СЫПАТЬ КРОШКУ", onLeft: { safety: -30, budget: 5, loyalty: -15, msg: "Три гостя поскользнулись, один сломал руку. Суды." }, onRight: { safety: 20, budget: -20, loyalty: 5, msg: "Дорожки безопасны. Мрамор в лобби уничтожен, ремонт за счет бюджета." } },
+    
+    // Кухня и Фронд-офис
+    { character: "Су-шеф", role: "Кухня", avatar: "🔪", text: "Выдайте нормальные кроссовки! В ваших ботинках с железным носом невозможно 12 часов стоять. Половина поваров в своих кедах готовит.", leftChoice: "ОШТРАФОВАТЬ", rightChoice: "РАЗРЕШИТЬ КЕДЫ", onLeft: { safety: 10, budget: 5, loyalty: -25, msg: "Повара ненавидят вас, началась текучка кадров." }, onRight: { safety: -25, budget: 0, loyalty: 20, msg: "Удобно. До первого упавшего на ногу раскаленного казана." } },
+    { character: "Шеф-повар", role: "Ресторан", avatar: "👨‍🍳", text: "В горячем цеху сломалась вытяжка. Дышать нечем, +40°C. До конца банкета еще 3 часа. Ремонтировать будем ночью. Работаем?", leftChoice: "ОСТАНОВИТЬ", rightChoice: "ДОРАБОТАТЬ", onLeft: { safety: 20, budget: -35, loyalty: -20, msg: "Банкет сорван. Огромные финансовые возвраты и скандал." }, onRight: { safety: -35, budget: 20, loyalty: 5, msg: "Два повара упали в обморок от теплового удара. Скорая." } },
+    { character: "Официант", role: "Ресторан", avatar: "🍽️", text: "Я разбил бокал у шведской линии. Крупные осколки убрал. Пылесосить нельзя — гости едят, шум помешает. Мелочь потом уберем.", leftChoice: "ПЫЛЕСОСИТЬ!", rightChoice: "ОСТАВИТЬ ТАК", onLeft: { safety: 15, budget: 0, loyalty: -15, msg: "Гости жалуются на шум пылесоса во время завтрака." }, onRight: { safety: -35, budget: 0, loyalty: 5, msg: "Ребенок наступил босой ногой на осколок. Кровь, скандал." } },
+    { character: "Мясник", role: "Кухня", avatar: "🥩", text: "Защитная кольчужная перчатка порвалась. Мне нужно срочно разделать 20 кг мяса на стейки. Я аккуратно, ножом без перчатки?", leftChoice: "СТОП РАБОТА", rightChoice: "ДАВАЙ АККУРАТНО", onLeft: { safety: 10, budget: -15, loyalty: -10, msg: "Стейков нет, гости возмущены меню." }, onRight: { safety: -40, budget: 10, loyalty: 0, msg: "Отрезанная фаланга пальца в стейке. Вы уволены." } },
+    { character: "Старшая горничная", role: "Housekeeping", avatar: "🧽", text: "Новая химия отмывает всё за секунду! Но перчатки от нее плавятся. Девочки моют голыми руками. Зато номера сдаем вовремя!", leftChoice: "ИЗЪЯТЬ ХИМИЮ", rightChoice: "РАБОТАЕМ", onLeft: { safety: 15, budget: -10, loyalty: -15, msg: "Уборка идет медленнее, гости скандалят в лобби в ожидании номеров." }, onRight: { safety: -35, budget: 15, loyalty: 5, msg: "Химические ожоги рук у трех горничных. Жалоба в ГИТ." } },
+    
+    // Гости и Ресепшен
+    { character: "Администратор", role: "Ресепшен", avatar: "👩‍💻", text: "Пьяный гость орет матом и грозится разнести стойку. Охрана говорит, что без приказа трогать VIP-гостя не будет.", leftChoice: "ВЫЗВАТЬ ГБР", rightChoice: "УСПОКОИТЬ САМИМ", onLeft: { safety: 20, budget: -15, loyalty: -10, msg: "VIP-гостя скрутили при всех. Скандал, потеря денег." }, onRight: { safety: -35, budget: 0, loyalty: -15, msg: "Гость разбил монитор и ударил администратора." } },
+    { character: "Беллбой", role: "Носильщик", avatar: "🧳", text: "Гости привезли 5 чемоданов по 30 кг. Лифт в коттедж не ходит. Можно я возьму легкую тележку для белья, чтобы не таскать по лестнице в руках?", leftChoice: "ТАСКАЙ В РУКАХ", rightChoice: "БЕРИ ТЕЛЕЖКУ", onLeft: { safety: 10, budget: 0, loyalty: -15, msg: "Гости долго ждут багаж и пишут плохой отзыв. Беллбой сорвал спину." }, onRight: { safety: -25, budget: 0, loyalty: 10, msg: "Тележка сломалась на лестнице, чемоданы покатились на гостя." } },
+    { character: "Инструктор проката", role: "Анимация", avatar: "🏍️", text: "Гость хочет взять квадроцикл, но он явно 'под шафе'. Говорит, что ездит как бог и даст двойную цену наличными. Даем ключи?", leftChoice: "ОТКАЗАТЬ", rightChoice: "ДАТЬ КЛЮЧИ", onLeft: { safety: 25, budget: -10, loyalty: -15, msg: "Гость устроил скандал, написал разгромный отзыв." }, onRight: { safety: -45, budget: 15, loyalty: 5, msg: "Гость врезался в дерево. Тяжелые травмы, полиция." } },
+    { character: "Аниматор", role: "Развлечения", avatar: "🎭", text: "Вечером фаер-шоу. Ветер усилился, дует в сторону деревянных беседок. Но 100 гостей уже собрались и ждут. Отменяем?", leftChoice: "ОТМЕНИТЬ ШОУ", rightChoice: "РАБОТАЕМ!", onLeft: { safety: 20, budget: -20, loyalty: -25, msg: "Гости в ярости, требуют возврата денег." }, onRight: { safety: -40, budget: 15, loyalty: 10, msg: "Искры подожгли беседку. Пожар на территории отеля." } },
+    { character: "Спасатель", role: "Бассейн", avatar: "🛟", text: "Родители оставили 5-летнего ребенка одного в детском бассейне и ушли в сауну. Ребенок плавает в нарукавниках. Выгонять его из воды?", leftChoice: "ВЫТАЩИТЬ ИЗ ВОДЫ", rightChoice: "ПУСТЬ ПЛАВАЕТ", onLeft: { safety: 25, budget: 0, loyalty: -20, msg: "Ребенок плачет, родители устроили скандал за 'испорченный отдых'." }, onRight: { safety: -45, budget: 0, loyalty: 10, msg: "Нарукавник сдулся. Едва избежали трагедии." } },
+
+    // Руководство и Проверки
+    { character: "HR Директор", role: "Кадры", avatar: "📝", text: "У нас 20 поваров с просроченными медкнижками. Медцентр примет их только через неделю. Закрываем глаза и выпускаем на смену?", leftChoice: "ОТСТРАНИТЬ ВСЕХ", rightChoice: "ПУСТЬ РАБОТАЮТ", onLeft: { safety: 20, budget: -35, loyalty: -20, msg: "Работать некому, кухня встала. Директор в бешенстве." }, onRight: { safety: -40, budget: 15, loyalty: 10, msg: "Внеплановая проверка. Закрытие кухни на 90 суток за сальмонеллез." } },
+    { character: "Фин. Директор", role: "Бюджет", avatar: "📊", text: "Спецоценка (СОУТ) стоит дорого. Давай наймем контору, которая сделает всё удаленно без замеров? По бумагам будет чисто.", leftChoice: "ТРЕБОВАТЬ ЗАМЕРЫ", rightChoice: "КУПИТЬ БУМАЖКИ", onLeft: { safety: 15, budget: -25, loyalty: -10, msg: "Бюджет потрачен, финансисты вас ненавидят." }, onRight: { safety: -35, budget: 20, loyalty: 5, msg: "Фиктивная СОУТ вскрылась после травмы. Уголовное дело." } },
+    { character: "Инспектор МЧС", role: "Пожнадзор", avatar: "🚒", text: "У вас двери на эвакуационных лестницах закрыты на ключ, а ключи у охраны. Это штраф 200 000 рублей, или 'договоримся'?", leftChoice: "ШТРАФ ОФИЦИАЛЬНО", rightChoice: "ДОГОВОРИТЬСЯ", onLeft: { safety: 10, budget: -30, loyalty: -10, msg: "Штраф оплачен, генеральный в ярости." }, onRight: { safety: -35, budget: -10, loyalty: 5, msg: "Сэкономили. Двери остались закрытыми. Риск братской могилы при пожаре." } },
+    { character: "Генеральный", role: "Директор", avatar: "👔", text: "Зачем нам тратить 500к на огнезащитную обработку деревянных коттеджей? Они же новые! Давай перенесем на следующий год?", leftChoice: "ЭТО НЕЗАКОННО", rightChoice: "ПЕРЕНОСИМ", onLeft: { safety: 15, budget: -25, loyalty: -15, msg: "Обработку сделали, но вы лишились годовой премии." }, onRight: { safety: -40, budget: 25, loyalty: 15, msg: "Коттедж сгорел дотла от брошенного окурка." } },
+    { character: "Снабженец", role: "Закупки", avatar: "📦", text: "Поставщик привез страховочные привязи без сертификатов ТР ТС, зато в 3 раза дешевле! Берем на баланс?", leftChoice: "ВОЗВРАТ ПОСТАВЩИКУ", rightChoice: "БЕРЕМ", onLeft: { safety: 15, budget: -15, loyalty: -5, msg: "Закупили дорогие. Бюджет просел." }, onRight: { safety: -40, budget: 20, loyalty: 5, msg: "Китайская привязь порвалась при срыве рабочего. Тюрьма." } },
+
+    // Смешанные ситуации
+    { character: "Инженер котельной", role: "Служба эксплуатации", avatar: "🔥", text: "Датчик угарного газа пищит уже час. Наверное, глючит, как всегда. Я его отключу пока, чтобы не бесил?", leftChoice: "ВЫЗВАТЬ ГАЗОВИКОВ", rightChoice: "ОТКЛЮЧАЙ", onLeft: { safety: 20, budget: -15, loyalty: -10, msg: "Отель сидел без горячей воды полдня, пока шла проверка." }, onRight: { safety: -50, budget: 5, loyalty: 10, msg: "Утечка угарного газа. Массовое отравление персонала." } },
+    { character: "Водитель трансфера", role: "Транспорт", avatar: "🚐", text: "Лобовое стекло треснуло, дворники не работают, а на улице ливень. Мне ехать за гостями в аэропорт?", leftChoice: "ОТМЕНИТЬ РЕЙС", rightChoice: "ЕЗЖАЙ ПОТИХОНЬКУ", onLeft: { safety: 15, budget: -10, loyalty: -20, msg: "Гости брали такси за свой счет и написали ужасный отзыв." }, onRight: { safety: -40, budget: 10, loyalty: 5, msg: "ДТП на трассе из-за плохой видимости." } },
+    { character: "Маляр", role: "АХО", avatar: "🎨", text: "Я буду красить коридор нитроэмалью. Она воняет жутко, респираторов нет. Можно я медицинскую маску надену?", leftChoice: "ЗАПРЕТИТЬ РАБОТУ", rightChoice: "НАДЕВАЙ И КРАСЬ", onLeft: { safety: 15, budget: -5, loyalty: -10, msg: "Ремонт встал до закупки нормальных респираторов." }, onRight: { safety: -30, budget: 5, loyalty: 10, msg: "Острое токсическое отравление парами краски." } },
+    { character: "Прачка", role: "Прачечная", avatar: "🧺", text: "Сломался концевик на промышленной центрифуге. Она теперь крутится даже с открытой крышкой. Вызывать мастера? Это долго.", leftChoice: "ВЫЗЫВАЙ МАСТЕРА", rightChoice: "РАБОТАЙ ТАК", onLeft: { safety: 20, budget: -15, loyalty: -15, msg: "Прачечная встала. Не хватает чистого белья для заезда." }, onRight: { safety: -45, budget: 15, loyalty: 5, msg: "Руку прачки затянуло в центрифугу на 1000 оборотах." } },
+    { character: "Бармен", role: "Бар", avatar: "🍸", text: "Баллон с углекислотой для пива травит газ. В подвале душно. Я окно открыл, нормально всё будет до завтра?", leftChoice: "ЗАКРЫТЬ БАР", rightChoice: "ДОРАБОТАЕМ ДО ЗАВТРА", onLeft: { safety: 20, budget: -20, loyalty: -15, msg: "Гости остались без пива. Бар несет убытки." }, onRight: { safety: -40, budget: 10, loyalty: 5, msg: "Углекислота скопилась в подвале. Бармен потерял сознание." } },
+    { character: "Сварщик", role: "Подрядчик", avatar: "🥽", text: "Мне нужно приварить перила у входа. Огнетушителя рядом нет, наряд-допуск писать долго. Я за 5 минут всё сделаю!", leftChoice: "ОФОРМЛЯЙ НАРЯД", rightChoice: "ВАРИ БЫСТРО", onLeft: { safety: 15, budget: 0, loyalty: -15, msg: "Бюрократия заняла час. Подрядчик требует доплату за простой." }, onRight: { safety: -35, budget: 5, loyalty: 10, msg: "Искра попала на утеплитель фасада. Сильный пожар." } },
+    { character: "Официантка", role: "Ресторан", avatar: "👠", text: "По корпоративному стандарту мы обязаны носить туфли на каблуке. Под конец смены я не чувствую ног. Можно я надену балетки?", leftChoice: "ДРЕСС-КОД ДЛЯ ВСЕХ", rightChoice: "РАЗРЕШИТЬ БАЛЕТКИ", onLeft: { safety: -10, budget: 0, loyalty: -20, msg: "Девушка упала в обморок от усталости. Текучка в зале." }, onRight: { safety: 10, budget: 0, loyalty: 20, msg: "Управляющий оштрафовал вас за нарушение стандартов сервиса." } },
+    { character: "Грузчик", role: "Склад", avatar: "📦", text: "Рохля сломалась. Привезли 2 тонны картошки. Будем на руках таскать в подвал, вариантов нет.", leftChoice: "ЖДАТЬ РЕМОНТА", rightChoice: "ТАСКАЙТЕ", onLeft: { safety: 15, budget: -15, loyalty: -10, msg: "Картошка испортилась на жаре, шеф-повар негодует." }, onRight: { safety: -30, budget: 10, loyalty: -15, msg: "Сорванные спины и две производственные травмы." } },
+    { character: "Стажер", role: "Горничная", avatar: "🧹", text: "Я случайно смешала хлорку с кислотным средством для унитазов. Из ведра пошел зеленый дым и воняет... Что делать?", leftChoice: "ЭВАКУАЦИЯ ЭТАЖА", rightChoice: "ВЫЛЕЙ В УНИТАЗ", onLeft: { safety: 20, budget: -20, loyalty: -20, msg: "Скандал, паника гостей, компенсации за сорванный отдых." }, onRight: { safety: -40, budget: 5, loyalty: -5, msg: "Выделение ядовитого хлора. Тяжелое отравление стажера." } },
+    { character: "Электрик", role: "АХО", avatar: "⚡", text: "Автомат в щитовой постоянно выбивает. Давайте я напрямую провода скручу, мимо автомата? Больше вырубать не будет!", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "СКРУЧИВАЙ", onLeft: { safety: 15, budget: -15, loyalty: -15, msg: "Половина отеля сидит без света в ожидании нового автомата." }, onRight: { safety: -50, budget: 10, loyalty: 5, msg: "Короткое замыкание вызвало масштабный пожар." } }
   ];
 
   function Game() {
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
     const [day, setDay] = useState(1);
     const [stats, setStats] = useState({ safety: 50, budget: 50, loyalty: 50 });
-    const [cards, setCards] = useState([]);
+    const [deck, setDeck] = useState([]);
     const [currentCard, setCurrentCard] = useState(null);
+    const [nextCard, setNextCard] = useState(null);
     const [deathReason, setDeathReason] = useState("");
+    const [bgState, setBgState] = useState(""); // '', 'swipe-left', 'swipe-right'
 
-    // Состояния для физики свайпа
     const cardRef = useRef(null);
     const [dragPos, setDragPos] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
 
-    // Инициализация игры
+    const getRank = (days) => {
+        if (days <= 5) return "Стажер с блокнотом 📝";
+        if (days <= 15) return "Младший инспектор 🧐";
+        if (days <= 25) return "Гроза нарушителей ⚡";
+        return "Бог Охраны Труда 👑";
+    };
+
     const initGame = () => {
       vibrate(50);
       setStats({ safety: 50, budget: 50, loyalty: 50 });
       setDay(1);
-      // Перемешиваем колоду
-      const shuffled = [...INITIAL_SCENARIOS].sort(() => Math.random() - 0.5);
-      setCards(shuffled);
+      const shuffled = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
+      setDeck(shuffled);
       setCurrentCard(shuffled[0]);
+      setNextCard(shuffled[1]);
       setGameState('playing');
+      setBgState("");
     };
 
-    // Проверка на проигрыш после каждого хода
     useEffect(() => {
       if (gameState !== 'playing') return;
 
       if (stats.safety <= 0) {
-        setDeathReason("Произошел тяжелый несчастный случай. В компанию пришла прокуратура. Вас уволили с волчьим билетом.");
+        setDeathReason("Вы закрывали глаза на нарушения ТБ. Произошел тяжелый несчастный случай. На территорию зашла прокуратура. Вас ждет суд.");
         setGameState('gameover');
         vibrate([300, 100, 300]);
       } else if (stats.budget <= 0) {
-        setDeathReason("Вы остановили производство и разорили компанию штрафами. Генеральный директор указал вам на дверь.");
+        setDeathReason("Вы остановили все процессы и разорили отель штрафами и простоями. Инвесторы в бешенстве. Вас уволили с волчьим билетом.");
         setGameState('gameover');
         vibrate([300, 100, 300]);
       } else if (stats.loyalty <= 0) {
-        setDeathReason("Коллектив вас ненавидит. Рабочие устроили саботаж и массово написали заявления на увольнение. Вы не справились.");
+        setDeathReason("Команда вас ненавидит, а гости пишут ужасные отзывы. Персонал устроил массовую забастовку. Вы не справились с давлением.");
         setGameState('gameover');
         vibrate([300, 100, 300]);
       }
     }, [stats, gameState]);
 
-    // Обработка выбора (Влево или Вправо)
     const makeChoice = (direction) => {
-      vibrate(30);
+      vibrate(40);
       const effects = direction === 'left' ? currentCard.onLeft : currentCard.onRight;
       
       setStats(prev => ({
@@ -207,20 +207,20 @@
 
       setDay(prev => prev + 1);
 
-      // Берем следующую карту (если закончились - перемешиваем заново)
-      let nextCards = cards.slice(1);
-      if (nextCards.length === 0) {
-         nextCards = [...INITIAL_SCENARIOS].sort(() => Math.random() - 0.5);
+      let newDeck = deck.slice(1);
+      if (newDeck.length < 2) {
+         newDeck = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
       }
-      setCards(nextCards);
-      setCurrentCard(nextCards[0]);
+      setDeck(newDeck);
+      setCurrentCard(newDeck[0]);
+      setNextCard(newDeck[1]);
       setDragPos(0);
+      setBgState("");
     };
 
-    // --- ФИЗИКА СВАЙПА (Touch & Mouse) ---
     const handlePointerDown = (e) => {
       setIsDragging(true);
-      setStartX(e.clientX || e.touches[0].clientX);
+      setStartX(e.clientX || (e.touches && e.touches[0].clientX));
       if(cardRef.current) cardRef.current.classList.remove('resetting');
     };
 
@@ -228,15 +228,20 @@
       if (!isDragging) return;
       const currentX = e.clientX || (e.touches && e.touches[0].clientX);
       const deltaX = currentX - startX;
-      // Ограничиваем сдвиг экрана
+      
       if (deltaX > 200) setDragPos(200);
       else if (deltaX < -200) setDragPos(-200);
       else setDragPos(deltaX);
+
+      if (deltaX > 30) setBgState("swipe-right");
+      else if (deltaX < -30) setBgState("swipe-left");
+      else setBgState("");
     };
 
     const handlePointerUp = () => {
       if (!isDragging) return;
       setIsDragging(false);
+      setBgState("");
       if(cardRef.current) cardRef.current.classList.add('resetting');
 
       if (dragPos > 100) {
@@ -244,30 +249,38 @@
       } else if (dragPos < -100) {
         makeChoice('left');
       } else {
-        // Возвращаем в центр, если свайп был слабый
         setDragPos(0);
       }
     };
 
-    // Отрисовка цвета прогресс-бара
     const getBarColor = (val) => {
         if (val > 60) return '#10b981'; // Green
         if (val > 30) return '#f59e0b'; // Yellow
         return '#ef4444'; // Red
     };
 
+    const shareResult = () => {
+        const text = `Я продержался ${day} смен в игре "СМЕНА: Симулятор СОТ" и получил звание "${getRank(day)}". Попробуй побить мой рекорд!`;
+        if (navigator.share) {
+            navigator.share({ title: 'Симулятор СОТ', text: text, url: window.location.href }).catch(console.error);
+        } else {
+            navigator.clipboard.writeText(text + " " + window.location.href);
+            alert("Результат скопирован в буфер обмена!");
+        }
+    };
+
     // === ЭКРАН СТАРТА ===
     if (gameState === 'start') {
       return (
-        <div className="flex flex-col items-center justify-center h-screen px-6 text-center animate-fade-in">
-          <div className="text-8xl mb-6">👷‍♂️</div>
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-4 tracking-tight">СМЕНА</h1>
-          <p className="text-xl font-bold text-slate-300 mb-2">Симулятор специалиста по ОТ</p>
-          <p className="text-slate-400 mb-10 max-w-sm leading-relaxed">
-            Принимайте решения, смахивая карточки <span className="text-rose-400 font-bold">ВЛЕВО</span> (Запретить) или <span className="text-emerald-400 font-bold">ВПРАВО</span> (Разрешить). Балансируйте между безопасностью, планом и людьми. Не дайте показателям упасть до нуля!
+        <div className="flex flex-col items-center justify-center h-screen px-6 text-center animate-fade-in relative z-10">
+          <div className="text-8xl mb-4 drop-shadow-[0_0_20px_rgba(14,165,233,0.5)]">🛡️</div>
+          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-2 tracking-tight">СМЕНА</h1>
+          <p className="text-xl font-bold text-slate-300 mb-2 uppercase tracking-widest">Симулятор Парк-Отеля</p>
+          <p className="text-slate-400 mb-10 max-w-sm leading-relaxed text-sm bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+            Принимайте решения, смахивая карточки <span className="text-rose-400 font-bold">ВЛЕВО</span> (Запретить) или <span className="text-emerald-400 font-bold">ВПРАВО</span> (Разрешить). Балансируйте между Безопасностью, Бюджетом и Сервисом.
           </p>
-          <button onClick={initGame} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-12 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-transform active:scale-95">
-            НАЧАТЬ СМЕНУ
+          <button onClick={initGame} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-12 rounded-full text-lg shadow-[0_0_30px_rgba(37,99,235,0.6)] transition-all active:scale-95 uppercase tracking-wider">
+            Выйти на смену
           </button>
         </div>
       );
@@ -276,114 +289,136 @@
     // === ЭКРАН ПОРАЖЕНИЯ ===
     if (gameState === 'gameover') {
       return (
-        <div className="flex flex-col items-center justify-center h-screen px-6 text-center animate-fade-in relative z-20">
-          <div className="text-7xl mb-6 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]">💀</div>
-          <h1 className="text-4xl font-black text-white mb-2 uppercase">Вы уволены</h1>
-          <div className="bg-slate-800/80 border border-slate-700 p-6 rounded-2xl mb-8 max-w-sm backdrop-blur-md">
-             <p className="text-rose-400 font-bold text-sm mb-2 uppercase tracking-widest">Причина:</p>
-             <p className="text-slate-200 leading-relaxed">{deathReason}</p>
+        <div className="flex flex-col items-center justify-center h-screen px-6 text-center animate-fade-in relative z-20 bg-slate-900/90 backdrop-blur-sm">
+          <div className="text-7xl mb-4 drop-shadow-[0_0_30px_rgba(225,29,72,0.8)]">💀</div>
+          <h1 className="text-4xl font-black text-white mb-2 uppercase tracking-wider text-rose-500">Игра окончена</h1>
+          <div className="bg-slate-800 border border-rose-900/50 p-6 rounded-2xl mb-6 max-w-sm shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+             <p className="text-rose-400 font-bold text-xs mb-2 uppercase tracking-widest border-b border-rose-900/50 pb-2">Причина:</p>
+             <p className="text-slate-200 text-sm leading-relaxed">{deathReason}</p>
           </div>
-          <div className="text-2xl font-bold text-slate-300 mb-8">
-            Вы продержались: <span className="text-blue-400 text-4xl">{day}</span> дней
+          <div className="text-xl font-bold text-slate-300 mb-2">Вы продержались:</div>
+          <div className="text-5xl font-black text-blue-400 mb-6 drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]">{day} <span className="text-xl">смен</span></div>
+          
+          <div className="text-sm text-slate-400 mb-8 uppercase tracking-widest">
+            Ваше звание:<br/>
+            <span className="text-lg font-bold text-amber-400">{getRank(day)}</span>
           </div>
-          <button onClick={initGame} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-10 rounded-full transition-transform active:scale-95 border border-slate-500">
-            ПОПРОБОВАТЬ СНОВА
-          </button>
+
+          <div className="flex gap-4 w-full max-w-sm">
+              <button onClick={initGame} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl transition-transform active:scale-95 border border-slate-500 shadow-lg text-sm">
+                ЗАНОВО
+              </button>
+              <button onClick={shareResult} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-transform active:scale-95 shadow-[0_0_20px_rgba(37,99,235,0.4)] text-sm">
+                ПОДЕЛИТЬСЯ
+              </button>
+          </div>
         </div>
       );
     }
 
     // === ИГРОВОЙ ЭКРАН ===
-    const rotation = dragPos * 0.05; // Наклон при перетаскивании
+    const rotation = dragPos * 0.05; 
     const opacityLeft = dragPos < -20 ? Math.min(1, Math.abs(dragPos) / 100) : 0;
     const opacityRight = dragPos > 20 ? Math.min(1, dragPos / 100) : 0;
 
     return (
-      <div className="flex flex-col h-screen overflow-hidden relative z-10"
+      <div className={`flex flex-col h-screen overflow-hidden relative z-10 transition-colors duration-300 ${bgState === 'swipe-left' ? 'bg-rose-950/40' : bgState === 'swipe-right' ? 'bg-emerald-950/40' : ''}`}
            onMouseMove={handlePointerMove} onMouseUp={handlePointerUp} onMouseLeave={handlePointerUp}
            onTouchMove={handlePointerMove} onTouchEnd={handlePointerUp}>
         
         {/* --- ВЕРХНЯЯ ПАНЕЛЬ (Статистика) --- */}
-        <div className="glass-panel p-4 pb-6 rounded-b-3xl shadow-lg z-20">
-            <div className="flex justify-between items-center mb-4 px-2">
-                <div className="font-black text-xl text-white tracking-widest">ДЕНЬ {day}</div>
-                <div className="text-xs font-bold text-slate-400 bg-slate-800 px-3 py-1 rounded-full uppercase tracking-wider border border-slate-700">СМЕНА</div>
+        <div className="glass-panel p-4 pb-5 rounded-b-[32px] shadow-[0_10px_30px_rgba(0,0,0,0.3)] z-20">
+            <div className="flex justify-between items-center mb-5 px-2">
+                <div className="font-black text-2xl text-white tracking-widest drop-shadow-md">СМЕНА {day}</div>
+                <div className="text-[10px] font-bold text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-full uppercase tracking-widest border border-slate-600 shadow-inner">
+                    Парк-Отель
+                </div>
             </div>
             
-            <div className="flex justify-between gap-4 px-1">
+            <div className="flex justify-between gap-5 px-2">
                 {/* Шкала Безопасности */}
                 <div className="flex-1 text-center">
-                    <div className="text-2xl mb-1 drop-shadow-md">🛡️</div>
-                    <div className="stat-bar-container">
-                        <div className="stat-bar-fill" style={{width: `${stats.safety}%`, backgroundColor: getBarColor(stats.safety)}}></div>
+                    <div className="text-2xl mb-1.5 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">🛡️</div>
+                    <div className="stat-bar-container border border-slate-700/50">
+                        <div className="stat-bar-fill shadow-[inset_0_2px_4px_rgba(255,255,255,0.2)]" style={{width: `${stats.safety}%`, backgroundColor: getBarColor(stats.safety)}}></div>
                     </div>
                 </div>
-                {/* Шкала Бюджета/Плана */}
+                {/* Шкала Бюджета */}
                 <div className="flex-1 text-center">
-                    <div className="text-2xl mb-1 drop-shadow-md">💰</div>
-                    <div className="stat-bar-container">
-                        <div className="stat-bar-fill" style={{width: `${stats.budget}%`, backgroundColor: getBarColor(stats.budget)}}></div>
+                    <div className="text-2xl mb-1.5 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">💰</div>
+                    <div className="stat-bar-container border border-slate-700/50">
+                        <div className="stat-bar-fill shadow-[inset_0_2px_4px_rgba(255,255,255,0.2)]" style={{width: `${stats.budget}%`, backgroundColor: getBarColor(stats.budget)}}></div>
                     </div>
                 </div>
-                {/* Шкала Лояльности */}
+                {/* Шкала Гости/Команда */}
                 <div className="flex-1 text-center">
-                    <div className="text-2xl mb-1 drop-shadow-md">🤝</div>
-                    <div className="stat-bar-container">
-                        <div className="stat-bar-fill" style={{width: `${stats.loyalty}%`, backgroundColor: getBarColor(stats.loyalty)}}></div>
+                    <div className="text-2xl mb-1.5 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">🤝</div>
+                    <div className="stat-bar-container border border-slate-700/50">
+                        <div className="stat-bar-fill shadow-[inset_0_2px_4px_rgba(255,255,255,0.2)]" style={{width: `${stats.loyalty}%`, backgroundColor: getBarColor(stats.loyalty)}}></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        {/* --- ИГРОВОЕ ПОЛЕ С КАРТОЧКОЙ --- */}
+        {/* --- ИГРОВОЕ ПОЛЕ С КАРТОЧКАМИ --- */}
         <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden">
             
-            {/* Подсказки под карточкой (фон) */}
-            <div className="absolute inset-0 flex items-center justify-between px-8 pointer-events-none opacity-20 z-0">
-                <div className="text-6xl text-rose-500 font-black">←</div>
-                <div className="text-6xl text-emerald-500 font-black">→</div>
+            {/* Подсказки под карточкой */}
+            <div className="absolute inset-0 flex items-center justify-between px-6 pointer-events-none opacity-30 z-0">
+                <div className={`text-6xl font-black transition-colors ${bgState === 'swipe-left' ? 'text-rose-500' : 'text-slate-500'}`}>←</div>
+                <div className={`text-6xl font-black transition-colors ${bgState === 'swipe-right' ? 'text-emerald-500' : 'text-slate-500'}`}>→</div>
             </div>
 
-            {currentCard && (
-                <div 
-                    ref={cardRef}
-                    className="swipe-card w-full max-w-[340px] aspect-[3/4] bg-white rounded-[32px] border-4 border-slate-200 flex flex-col relative z-10 cursor-grab active:cursor-grabbing"
-                    style={{ transform: `translate(${dragPos}px, ${Math.abs(dragPos)*0.1}px) rotate(${rotation}deg)` }}
-                    onMouseDown={handlePointerDown}
-                    onTouchStart={handlePointerDown}
-                >
-                    {/* Индикаторы свайпа (Появляются только при натяжении) */}
-                    <div className="choice-indicator choice-left" style={{opacity: opacityLeft}}>{currentCard.leftChoice}</div>
-                    <div className="choice-indicator choice-right" style={{opacity: opacityRight}}>{currentCard.rightChoice}</div>
-
-                    {/* Верхняя часть карточки: Аватар и Имя */}
-                    <div className="bg-slate-100 rounded-t-[28px] p-6 flex flex-col items-center justify-center border-b border-slate-200 h-[45%]">
-                        <div className="text-7xl mb-3 filter drop-shadow-md">{currentCard.avatar}</div>
-                        <h2 className="text-2xl font-black text-slate-800 text-center leading-tight">{currentCard.character}</h2>
-                        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">{currentCard.role}</p>
+            <div className="card-stack">
+                {/* Следующая карточка (Глубина) */}
+                {nextCard && (
+                    <div className="next-card flex flex-col items-center justify-center">
+                        <div className="text-7xl filter opacity-50 grayscale">{nextCard.avatar}</div>
                     </div>
+                )}
 
-                    {/* Нижняя часть карточки: Текст ситуации */}
-                    <div className="p-6 flex-1 flex items-center justify-center bg-white rounded-b-[28px]">
-                        <p className="text-slate-700 text-lg font-medium text-center leading-relaxed">
-                            "{currentCard.text}"
-                        </p>
+                {/* Текущая активная карточка */}
+                {currentCard && (
+                    <div 
+                        ref={cardRef}
+                        className="swipe-card cursor-grab active:cursor-grabbing"
+                        style={{ transform: `translate(${dragPos}px, ${Math.abs(dragPos)*0.05}px) rotate(${rotation}deg)` }}
+                        onMouseDown={handlePointerDown}
+                        onTouchStart={handlePointerDown}
+                    >
+                        {/* Индикаторы свайпа */}
+                        <div className="choice-indicator choice-left" style={{opacity: opacityLeft}}>{currentCard.leftChoice}</div>
+                        <div className="choice-indicator choice-right" style={{opacity: opacityRight}}>{currentCard.rightChoice}</div>
+
+                        {/* Шапка карточки */}
+                        <div className="bg-slate-50 rounded-t-[28px] p-6 flex flex-col items-center justify-center border-b border-slate-200 h-[45%] shadow-[inset_0_-10px_20px_rgba(0,0,0,0.02)]">
+                            <div className="text-[5rem] mb-2 filter drop-shadow-xl">{currentCard.avatar}</div>
+                            <h2 className="text-2xl font-black text-slate-800 text-center leading-tight tracking-tight">{currentCard.character}</h2>
+                            <div className="mt-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold text-[10px] uppercase tracking-widest">{currentCard.role}</div>
+                        </div>
+
+                        {/* Текст ситуации */}
+                        <div className="p-6 flex-1 flex items-center justify-center bg-white rounded-b-[28px]">
+                            <p className="text-slate-700 text-lg font-medium text-center leading-relaxed">
+                                "{currentCard.text}"
+                            </p>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
 
-        {/* --- НИЖНЯЯ ПАНЕЛЬ (Кнопки для тех, кому неудобно свайпать) --- */}
-        <div className="p-6 pb-10 flex justify-between gap-4 z-20">
+        {/* --- НИЖНЯЯ ПАНЕЛЬ (Кнопки) --- */}
+        <div className="p-6 pb-8 flex justify-between gap-4 z-20">
             <button 
                 onClick={() => makeChoice('left')}
-                className="flex-1 bg-rose-100 hover:bg-rose-200 text-rose-700 border-2 border-rose-300 font-bold py-4 rounded-2xl transition-all active:scale-95 shadow-sm">
+                className="flex-1 bg-rose-100 hover:bg-rose-200 text-rose-700 border-2 border-rose-300 font-black py-4 rounded-2xl transition-all active:scale-95 shadow-[0_5px_15px_rgba(225,29,72,0.15)] uppercase tracking-wider text-sm">
                 Отказать
             </button>
             <button 
                 onClick={() => makeChoice('right')}
-                className="flex-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-2 border-emerald-300 font-bold py-4 rounded-2xl transition-all active:scale-95 shadow-sm">
-                Разрешить
+                className="flex-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-2 border-emerald-300 font-black py-4 rounded-2xl transition-all active:scale-95 shadow-[0_5px_15px_rgba(16,185,129,0.15)] uppercase tracking-wider text-sm">
+                Согласиться
             </button>
         </div>
         
