@@ -103,7 +103,7 @@
   const { useState, useEffect, useRef } = React;
   const { createRoot } = ReactDOM;
 
-  // --- БЕЗОПАСНЫЙ ЗВУКОВОЙ ДВИЖОК (WEB AUDIO API) ---
+  // --- БЕЗОПАСНЫЙ ЗВУКОВОЙ ДВИЖОК (Не ломает iOS/Android) ---
   const audioCtx = useRef(null);
   const masterGain = useRef(null);
 
@@ -111,12 +111,14 @@
       try {
           if (!audioCtx.current) {
               const AudioContext = window.AudioContext || window.webkitAudioContext;
-              audioCtx.current = new AudioContext();
-              masterGain.current = audioCtx.current.createGain();
-              masterGain.current.gain.value = 0.15; // Глобальная громкость (безопасная)
-              masterGain.current.connect(audioCtx.current.destination);
+              if (AudioContext) {
+                  audioCtx.current = new AudioContext();
+                  masterGain.current = audioCtx.current.createGain();
+                  masterGain.current.gain.value = 0.15;
+                  masterGain.current.connect(audioCtx.current.destination);
+              }
           }
-          if (audioCtx.current.state === 'suspended') {
+          if (audioCtx.current && audioCtx.current.state === 'suspended') {
               audioCtx.current.resume();
           }
       } catch(e) { console.warn("Аудио недоступно", e); }
@@ -169,7 +171,7 @@
       }
   };
 
-  // КИНЕТИЧЕСКИЙ ТЕКСТ С ВЫДЕЛЕНИЕМ ЭМОЦИЙ
+  // КИНЕТИЧЕСКИЙ ТЕКСТ С ВЫДЕЛЕНИЕМ (ИСПРАВЛЕНО ДЛЯ BABEL)
   const TypewriterText = ({ text }) => {
       const [displayed, setDisplayed] = useState("");
       useEffect(() => {
@@ -186,14 +188,15 @@
           let res = str;
           words.forEach(w => {
               const regex = new RegExp(`(${w})`, 'gi');
-              res = res.replace(regex, `<span class="text-rose-600 font-black animate-shake inline-block">\$1</span>`);
+              // Безопасная конкатенация строк для Babel
+              res = res.replace(regex, '<span class="text-rose-600 font-black animate-shake inline-block">$1</span>');
           });
           return { __html: res };
       };
-      return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed" />;
+      return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed relative z-10" />;
   };
 
-  // --- БАЗА СЦЕНАРИЕВ С ПРОСЧИТАННЫМ ЭФФЕКТОМ БАБОЧКИ ---
+  // --- ВАШИ СЦЕНАРИИ С ВНЕДРЕННЫМ ЭФФЕКТОМ БАБОЧКИ ---
   const ALL_SCENARIOS = [
     { isUrgent: false, character: "Дежурный специалист", role: "РЭО", avatar: "🪜", text: "У нас перегорела люстра в холле лобби. Высота 5 метров. Леса собирать долго, давай ребята две стремянки поставят и доску между ними кинут?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "РАЗРЕШИТЬ", onLeft: { safety: 10, budget: -15, loyalty: -10, msg: "Люстра не горит. Гости жалуются на темноту." }, onRight: { safety: -40, budget: 10, loyalty: 5, msg: "Доска треснула. Рабочий упал с 5 метров. Уголовное дело." } },
     { isUrgent: false, character: "Шеф-повар", role: "Служба питания", avatar: "🍳", text: "Фритюрница искрит на контактах. Электрик будет только завтра. Я замотал изолентой, банкет надо выдавать. Работаем?", leftChoice: "ВЫВЕСТИ ИЗ СТРОЯ", rightChoice: "ГОТОВЬ АККУРАТНО", onLeft: { safety: 15, budget: -25, loyalty: -15, msg: "Меню банкета сорвано. Отель платит неустойку." }, onRight: { safety: -45, budget: 20, loyalty: 0, msg: "Короткое замыкание. Пожар в горячем цеху, эвакуация." } },
@@ -201,55 +204,44 @@
     { isUrgent: true, character: "Сигнализация", role: "Диспетчерская", avatar: "🚨", text: "Сработала пожарная сигнализация в SPA-комплексе! Там сейчас 50 гостей в купальниках. Может это ложное от пара сауны? Ждем разведку или эвакуируем?!", leftChoice: "ЭВАКУАЦИЯ!", rightChoice: "ЖДЕМ 5 МИНУТ", onLeft: { safety: 15, budget: -20, loyalty: -25, msg: "Гости мерзли на улице в халатах. Тревога была ложной." }, onRight: { safety: -60, budget: 0, loyalty: 0, msg: "Это было реальное возгорание проводки. Люди отравились угаром." } },
     { isUrgent: false, character: "Служба персонала", role: "Кадры", avatar: "📋", text: "Завтра заезд детского лагеря, а у 10 новых поваров нет справок от психиатра. Поликлиника выдаст их только в понедельник. Выпускаем на смену?", leftChoice: "ОТСТРАНИТЬ", rightChoice: "ПУСТЬ РАБОТАЮТ", onLeft: { safety: 15, budget: -30, loyalty: -15, msg: "Нехватка персонала, дети ждали еду по 2 часа." }, onRight: { safety: -35, budget: 15, loyalty: 10, msg: "Проверка Роспотребнадзора нашла нарушение. Штраф 500к на юр.лицо." } },
     { isUrgent: false, character: "Главный Инженер", role: "Подрядчики", avatar: "👷", text: "Приехали подрядчики чистить вентиляцию. Нарядов-допусков на работу в ОЗП (замкнутых пространствах) у них нет, газоанализатора тоже. Пускаем?", leftChoice: "ПРОГНАТЬ ИХ", rightChoice: "ПУСТЬ ЛЕЗУТ", onLeft: { safety: 10, budget: -20, loyalty: -10, msg: "Вентиляция грязная, бюджет горит." }, onRight: { safety: -50, budget: 15, loyalty: 5, msg: "Рабочий задохнулся в шахте. Вы не проверили их допуски." } },
+    { isUrgent: false, character: "Бухгалтерия", role: "Финансы", avatar: "💸", text: "Пришло время закупать зимнюю спецодежду для дворников. Есть сертифицированная за 10 тыс. руб, и китайская на рынке без документов за 3 тыс. Какую берем?", leftChoice: "СЕРТИФИКАТ", rightChoice: "С РЫНКА", onLeft: { safety: 15, budget: -25, loyalty: 10, msg: "Рабочие в тепле, но бюджет исчерпан." }, onRight: { safety: -30, budget: 25, loyalty: -20, msg: "Дворники обморозили руки. ГИТ нашла несертифицированные СИЗ." } },
     { isUrgent: false, character: "Официант", role: "Ресторан", avatar: "🩹", text: "Я порезал палец слайсером. Кровь течет сильно. Кровь залила доску. В аптечке только бинт, перекиси нет. Продолжать работу?", leftChoice: "В МЕДПУНКТ", rightChoice: "ЗАМОТАЙ И РАБОТАЙ", onLeft: { safety: 10, budget: -10, loyalty: -5, msg: "Официант спасен, но смена осталась без рук." }, onRight: { safety: -30, budget: 10, loyalty: -15, msg: "Кровь попала в блюдо гостя. Скандал космического масштаба." } },
     { isUrgent: true, character: "Админ. контроль", role: "КПП", avatar: "🏃‍♂️", text: "В ресторане гость подавился стейком! Он задыхается, синеет! Я не умею делать прием Геймлиха. Вызывать скорую или вы сами прибежите?!", leftChoice: "ВЫЗЫВАЙ СКОРУЮ", rightChoice: "БЕГУ САМ (СЛР)", onLeft: { safety: -50, budget: 0, loyalty: 0, msg: "Скорая ехала 20 минут. Гость задохнулся. Вы не организовали первую помощь." }, onRight: { safety: 20, budget: 0, loyalty: 15, msg: "Вы успели спасти жизнь приемом Геймлиха. Вы герой." } },
+    { isUrgent: false, character: "Директор", role: "Администрация", avatar: "👔", text: "СОУТ (спецоценка) обойдется в полмиллиона. Давай заплатим конторе 50 тысяч, они без выезда нарисуют нам 2-й класс опасности для всех?", leftChoice: "ЭТО УГОЛОВКА", rightChoice: "ХОРОШАЯ ИДЕЯ", onLeft: { safety: 15, budget: -30, loyalty: -20, msg: "Директор взбешен тратами, но по закону вы прикрыты." }, onRight: { safety: -40, budget: 30, loyalty: 15, msg: "При тяжелой травме подлог вскрылся. Директор перевел вину на вас." } },
     { isUrgent: false, character: "Электрик", role: "ЭТО", avatar: "🔌", text: "В подвале вода по щиколотку после ливня, а там электрощитовая. Надо зайти рубильник отключить. Диэлектрических бот нет. Пойду в резиновых сапогах?", leftChoice: "СТОЙ!", rightChoice: "ИДИ АККУРАТНО", onLeft: { safety: 15, budget: -15, loyalty: -5, msg: "Ждем МЧС. Подвал затопило еще сильнее." }, onRight: { safety: -60, budget: 10, loyalty: 5, msg: "Обычная резина не спасла от шагового напряжения. Летальный исход." } },
+    { isUrgent: false, character: "Инспектор ГИТ", role: "Проверка", avatar: "👮", text: "У вас 30 сотрудников не прошли проверку знаний по охране труда (ПП №2464). Штраф 130 000 руб за каждого. Или договоримся?", leftChoice: "ПИШИТЕ ШТРАФ", rightChoice: "ДАВАЙТЕ ДОГОВОРИМСЯ", onLeft: { safety: 0, budget: -50, loyalty: -10, msg: "Огромный штраф. Отель на грани банкротства." }, onRight: { safety: -30, budget: -10, loyalty: 0, msg: "Сэкономили. Но сотрудники так и остались без знаний правил безопасности." } },
+    { isUrgent: false, character: "Горничная", role: "ГХ", avatar: "🧪", text: "Канистры с химией в кладовке тяжелые. Девочки перелили доместос и кислоту в обычные бутылки из-под минералки без этикеток, так удобнее носить.", leftChoice: "ИЗЪЯТЬ БУТЫЛКИ", rightChoice: "ПУСТЬ НОСЯТ", onLeft: { safety: 15, budget: 0, loyalty: -15, msg: "Горничные жалуются на сорванные спины от тяжелых канистр." }, onRight: { safety: -40, budget: 0, loyalty: 10, msg: "Стажер случайно выпил глоток химии из бутылки из-под Sprite." } },
     { isUrgent: true, character: "Диспетчер", role: "Лифты", avatar: "🛗", text: "В лифте застряли 4 гостя! Там жарко, у одного паническая атака. Лифтер будет ехать час. Дежурный предлагает вскрыть двери ломиком прямо сейчас!", leftChoice: "ЖДЕМ ЛИФТЕРА", rightChoice: "ВСКРЫВАЙТЕ", onLeft: { safety: 15, budget: -10, loyalty: -25, msg: "Гости просидели час в духоте. Жесткий скандал, но все живы." }, onRight: { safety: -50, budget: 0, loyalty: 10, msg: "При вскрытии ломом лифт дернулся. Гость упал в шахту." } },
-    
-    // БАБОЧКА 1: Фиктивная спецоценка
-    { isUrgent: false, character: "Директор", role: "Администрация", avatar: "👔", text: "СОУТ (спецоценка) обойдется в полмиллиона. Давай заплатим конторе 50 тысяч, они без выезда нарисуют нам 2-й класс опасности для всех?", leftChoice: "ЭТО УГОЛОВКА", rightChoice: "ХОРОШАЯ ИДЕЯ", 
-      onLeft: { safety: 15, budget: -30, loyalty: -20, msg: "Директор взбешен тратами, но по закону вы прикрыты." }, 
-      onRight: { safety: -10, budget: 30, loyalty: 10, msg: "Сэкономили кучу денег. По бумагам у нас курорт.", 
-        spawnCard: { isUrgent: false, character: "Следователь", role: "Следком", avatar: "👮‍♂️", text: "При проверке легкой травмы мы изучили ваши карты СОУТ. Экспертиза признала их фиктивными. Кто подписывал?", leftChoice: "ВЗЯТЬ ВИНУ НА СЕБЯ", rightChoice: "СДАТЬ ДИРЕКТОРА", onLeft: { safety: -50, budget: 0, loyalty: 20, msg: "Вы берете уголовку на себя. Директор плачет, но не мешает." }, onRight: { safety: 10, budget: -30, loyalty: -40, msg: "Директор под следствием. Отель на грани банкротства." } }
-      } 
-    },
-    // БАБОЧКА 2: Левые огнетушители
-    { isUrgent: false, character: "Снабженец", role: "Закупки", avatar: "📦", text: "Мы купили новые огнетушители, но они без паспортов и чеки не опломбированы. Зато скидка 40%. Расставляем по этажам?", leftChoice: "ВЕРНУТЬ ОБРАТНО", rightChoice: "РАССТАВЛЯЕМ", 
-      onLeft: { safety: 15, budget: -20, loyalty: -5, msg: "Остались без огнетушителей на неделю, ждем новую партию." }, 
-      onRight: { safety: -10, budget: 25, loyalty: 0, msg: "Бюджет спасен. Внешне они выглядят нормально.",
-        spawnCard: { isUrgent: true, character: "Пожар!", role: "ЧС", avatar: "🔥", text: "Возгорание в прачечной! Огнетушители, которые вы расставили, оказались пустыми пустышками! Что делать?!", leftChoice: "ТУШИТЬ ВОДОЙ", rightChoice: "БРОСИТЬ ВСЕ И БЕЖАТЬ", onLeft: { safety: -50, budget: -20, loyalty: -10, msg: "Вода на проводку... Страшный удар током." }, onRight: { safety: 10, budget: -50, loyalty: -20, msg: "Вы сбежали. Прачечная выгорела дотла. Огромные убытки." } }
-      } 
-    },
-    // БАБОЧКА 3: Опасная химия
-    { isUrgent: false, character: "Горничная", role: "ГХ", avatar: "🧪", text: "Канистры с химией в кладовке тяжелые. Девочки перелили доместос и кислоту в обычные бутылки из-под минералки без этикеток, так удобнее носить.", leftChoice: "ИЗЪЯТЬ БУТЫЛКИ", rightChoice: "ПУСТЬ НОСЯТ", 
-      onLeft: { safety: 15, budget: 0, loyalty: -15, msg: "Горничные жалуются на сорванные спины от тяжелых канистр." }, 
-      onRight: { safety: -15, budget: 0, loyalty: 10, msg: "Спины спасены, убирают быстрее.",
-        spawnCard: { isUrgent: true, character: "Скорая", role: "Отравление", avatar: "🚑", text: "Стажер случайно выпил глоток химии из бутылки из-под Sprite! Он задыхается, ожог гортани!", leftChoice: "ДАТЬ ВОДЫ", rightChoice: "ВЫЗВАТЬ РЕАНИМАЦИЮ", onLeft: { safety: -50, budget: 0, loyalty: -20, msg: "Вода усилила реакцию. Исход летальный." }, onRight: { safety: 10, budget: -20, loyalty: 10, msg: "Реанимация спасла стажера. Но вина за бутылки на вас." } }
-      } 
-    },
+    { isUrgent: false, character: "Снабженец", role: "Закупки", avatar: "📦", text: "Мы купили новые огнетушители, но они без паспортов и чеки не опломбированы. Зато скидка 40%. Расставляем по этажам?", leftChoice: "ВЕРНУТЬ ОБРАТНО", rightChoice: "РАССТАВЛЯЕМ", onLeft: { safety: 15, budget: -20, loyalty: -5, msg: "Остались без огнетушителей на неделю, ждем новую партию." }, onRight: { safety: -35, budget: 20, loyalty: 0, msg: "При реальном возгорании огнетушители не сработали. Пожар." } },
     
     // НЕЙТРАЛЬНЫЕ С ОТЛОЖЕННЫМ ЭФФЕКТОМ (БАБОЧКА)
     { isUrgent: false, character: "Уборщица", role: "ГХ", avatar: "🧹", text: "В холле протерся коврик, края задираются. Посетители спотыкаются, но не падают. Заказать новый за 15к или приклеить края двусторонним скотчем?", leftChoice: "КЛЕИТЬ СКОТЧЕМ", rightChoice: "ЗАКАЗАТЬ НОВЫЙ", 
-      onLeft: { safety: -5, budget: 15, loyalty: -5, msg: "Коврик приклеен. Выглядит неопрятно, но пока держится.", 
+      onLeft: { safety: -5, budget: 5, loyalty: -5, msg: "Коврик приклеен. Выглядит неопрятно, но пока держится.", 
         spawnCard: { isUrgent: true, character: "Гость", role: "VIP", avatar: "🤬", text: "Я споткнулся о ваш скотч на коврике и разбил нос! Я подаю в суд на ваш отель!", leftChoice: "ИЗВИНИТЬСЯ", rightChoice: "ОПЛАТИТЬ ЛЮКС", onLeft: { safety: -15, budget: 0, loyalty: -20, msg: "Гость написал разгромный отзыв и подал иск." }, onRight: { safety: 5, budget: -25, loyalty: 10, msg: "Гость успокоился в бесплатном люксе. Бюджет просел." } }
       }, 
       onRight: { safety: 10, budget: -15, loyalty: 5, msg: "Постелили новый коврик. Безопасно и эстетично." } 
-    },
-    { isUrgent: false, character: "Бухгалтерия", role: "Финансы", avatar: "💸", text: "Пришло время закупать зимнюю спецодежду для дворников. Есть сертифицированная за 10 тыс. руб, и китайская на рынке без документов за 3 тыс. Какую берем?", leftChoice: "СЕРТИФИКАТ", rightChoice: "С РЫНКА", 
-      onLeft: { safety: 15, budget: -25, loyalty: 10, msg: "Рабочие в тепле, но бюджет исчерпан." }, 
-      onRight: { safety: -10, budget: 25, loyalty: 0, msg: "Сэкономили бюджет. Одежда выглядит тонковатой.",
-        spawnCard: { isUrgent: false, character: "Дворник", role: "Больничный", avatar: "🥶", text: "Я обморозил руки в вашей китайской робе. Пишу жалобу в ГИТ на обеспечение СИЗ!", leftChoice: "ИГНОРИРОВАТЬ", rightChoice: "ОПЛАТИТЬ ЛЕЧЕНИЕ", onLeft: { safety: -30, budget: -10, loyalty: -30, msg: "ГИТ наложила огромный штраф." }, onRight: { safety: 10, budget: -25, loyalty: 15, msg: "Конфликт замят деньгами." } }
-      } 
     },
     { isUrgent: false, character: "Админ. контроль", role: "Патруль", avatar: "🔦", text: "Перегорела лампочка на черной лестнице. Там редко ходят. Отправить техника сейчас или подождать до завтрашнего утреннего обхода?", leftChoice: "ЖДАТЬ ДО ЗАВТРА", rightChoice: "МЕНЯТЬ СЕЙЧАС", 
       onLeft: { safety: -5, budget: 5, loyalty: 0, msg: "Ночью никто не упал. Завтра поменяют.",
         spawnCard: { isUrgent: false, character: "Повар", role: "Травма", avatar: "🤕", text: "Я вчера упал на темной лестнице, растянул связки. На смену не выйду неделю.", leftChoice: "ОТПУСТИТЬ", rightChoice: "ЗАСТАВИТЬ РАБОТАТЬ", onLeft: { safety: 5, budget: -15, loyalty: 10, msg: "Кухня осталась без повара. Оплата больничного." }, onRight: { safety: -30, budget: 10, loyalty: -20, msg: "Повар пожаловался в инспекцию на сокрытие травмы." } }
       }, 
       onRight: { safety: 5, budget: -5, loyalty: 0, msg: "Техник поворчал, но заменил лампу. Лестница освещена." } 
+    },
+    { isUrgent: false, character: "Офис-менеджер", role: "Кадры", avatar: "🗂️", text: "У офисных сотрудников срок планового инструктажа. Собрать всех в зале на час (оторвать от работы) или скинуть презентацию на почту для галочки?", leftChoice: "СОБРАТЬ В ЗАЛЕ", rightChoice: "КИНУТЬ НА ПОЧТУ", 
+      onLeft: { safety: 5, budget: -5, loyalty: -5, msg: "Бухгалтерия недовольна потерей времени, но инструктаж пройден честно." }, 
+      onRight: { safety: -5, budget: 5, loyalty: 5, msg: "Все рады, что не пришлось идти. Знаний по ТБ не прибавилось.",
+        spawnCard: { isUrgent: true, character: "Прокурор", role: "Проверка", avatar: "🦅", text: "У вас офисники расписались за инструктаж в один день и час. Это физически невозможно! Фальсификация?", leftChoice: "КАЯТЬСЯ", rightChoice: "ОТПИРАТЬСЯ", onLeft: { safety: 0, budget: -30, loyalty: -10, msg: "Признали вину. Большой штраф." }, onRight: { safety: -40, budget: -20, loyalty: 0, msg: "Ложь вскрылась. Против вас возбуждено дело." } }
+      } 
+    },
+    { isUrgent: false, character: "Медсестра", role: "Медцентр", avatar: "🩹", text: "У нас в трех аптечках на этажах бинты истекают через неделю. Закупить новые сегодня или дотянем до следующего месяца?", leftChoice: "ДОТЯНЕМ", rightChoice: "ЗАКУПИТЬ СЕЙЧАС", 
+      onLeft: { safety: -5, budget: 5, loyalty: 0, msg: "Сэкономили копейки. Надеемся, никто серьезно не порежется.",
+        spawnCard: { isUrgent: true, character: "Рабочий", role: "Кровь", avatar: "😱", text: "Я руку глубоко порезал! Добежал до аптечки, а там только йод, бинтов нет!! Кровь хлещет!", leftChoice: "СКОРАЯ", rightChoice: "РВАТЬ РУБАШКУ", onLeft: { safety: -30, budget: 0, loyalty: -20, msg: "Рабочий потерял много крови. Отель засудили." }, onRight: { safety: 10, budget: -5, loyalty: 15, msg: "Вы наложили жгут из рубашки. Героически, но непрофессионально." } }
+      }, 
+      onRight: { safety: 5, budget: -5, loyalty: 0, msg: "Аптечки обновлены. Бюджет слегка похудел." } 
     }
   ];
 
-  // --- БОСС-КАРТЫ (Каждые 10 дней, Дают шанс на восстановление при правильном ответе) ---
+  // --- БОСС-КАРТЫ (Каждые 10 дней) ---
   const BOSS_CARDS = [
       { isBoss: true, character: "ИНСПЕКТОР", role: "ПРОКУРАТУРА", avatar: "🦅", text: "АНОНИМНАЯ ЖАЛОБА! НЕМЕДЛЕННО ПРЕДОСТАВЬТЕ ЖУРНАЛЫ ИНСТРУКТАЖЕЙ ЗА ГОД!", leftChoice: "ТЯНУТЬ ВРЕМЯ", rightChoice: "ДАТЬ ЖУРНАЛЫ", onLeft: { safety: -20, budget: -30, loyalty: -10, msg: "Огромный штраф за воспрепятствование проверке!" }, onRight: { safety: +15, budget: -10, loyalty: +15, msg: "Вы сдали идеальные документы. Инспектор доволен прозрачностью!" } },
       { isBoss: true, character: "ПРОВЕРКА", role: "РОСПОТРЕБ", avatar: "🦠", text: "ВНЕПЛАНОВЫЙ РЕЙД НА КУХНЮ! ГДЕ МАРКИРОВКИ НА ДОСКАХ И НОЖАХ?!", leftChoice: "НЕ ПУСКАТЬ", rightChoice: "ПУСТИТЬ В ЦЕХ", onLeft: { safety: -10, budget: -40, loyalty: -10, msg: "Выписан гигантский штраф. Кухня под угрозой закрытия." }, onRight: { safety: +20, budget: -10, loyalty: +15, msg: "Вы показали эталонную кухню. Проверка пройдена успешно!" } }
@@ -274,7 +266,6 @@
     const [showCallOverlay, setShowCallOverlay] = useState(false);
     const [showCallHint, setShowCallHint] = useState(false);
     
-    // Лидерборд и Ачивки
     const [achievements, setAchievements] = useState([]);
     const [leaderboard, setLeaderboard] = useState([]);
     const [showGallery, setShowGallery] = useState(false);
@@ -288,11 +279,12 @@
     const isCritical = stats.safety < 20 || stats.budget < 20 || stats.loyalty < 20;
 
     useEffect(() => {
-        setAchievements(JSON.parse(localStorage.getItem('smena_achievements') || '[]'));
-        setLeaderboard(JSON.parse(localStorage.getItem('smena_leaderboard') || '[]'));
+        try {
+            setAchievements(JSON.parse(localStorage.getItem('smena_achievements') || '[]'));
+            setLeaderboard(JSON.parse(localStorage.getItem('smena_leaderboard') || '[]'));
+        } catch(e) { console.warn('LS error'); }
     }, []);
 
-    // Звук сердцебиения при стрессе
     useEffect(() => {
         if (isCritical && gameState === 'playing' && !showCallOverlay && !feedback) {
             heartbeatRef.current = setInterval(() => playHeartbeatTone(), 1200);
@@ -314,16 +306,18 @@
         setAchievements(prev => {
             if (prev.includes(id)) return prev;
             const newArr = [...prev, id];
-            localStorage.setItem('smena_achievements', JSON.stringify(newArr));
+            try { localStorage.setItem('smena_achievements', JSON.stringify(newArr)); } catch(e) {}
             return newArr;
         });
     };
 
     const saveScore = (finalDay) => {
         const newScore = { days: finalDay, date: new Date().toLocaleDateString('ru-RU') };
-        const newLb = [...leaderboard, newScore].sort((a,b) => b.days - a.days).slice(0, 5);
-        setLeaderboard(newLb);
-        localStorage.setItem('smena_leaderboard', JSON.stringify(newLb));
+        setLeaderboard(prev => {
+            const newLb = [...prev, newScore].sort((a,b) => b.days - a.days).slice(0, 5);
+            try { localStorage.setItem('smena_leaderboard', JSON.stringify(newLb)); } catch(e) {}
+            return newLb;
+        });
     };
 
     const getRank = (days) => {
@@ -357,7 +351,6 @@
         playGameOver();
     };
 
-    // Таймер
     useEffect(() => {
         if (gameState === 'playing' && (currentCard?.isUrgent || currentCard?.isBoss) && !showCallOverlay && !feedback) {
             timerRef.current = setInterval(() => {
@@ -409,7 +402,7 @@
           
           let newDeck = [...deck];
           
-          // Эффект Бабочки
+          // Эффект Бабочки (добавляем карту-последствие в колоду)
           if (effects.spawnCard) {
               const insertIndex = Math.min(newDeck.length, Math.floor(Math.random() * 3) + 1);
               newDeck.splice(insertIndex, 0, effects.spawnCard);
@@ -444,25 +437,34 @@
     };
 
     const handlePointerMove = (e) => {
+      // КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Двигается только при зажатом клике
       if (!isDragging || !cardRef.current || feedback || showCallOverlay) return;
       const clientX = e.clientX || (e.touches && e.touches[0].clientX);
       if (!clientX) return;
+      
       const deltaX = clientX - startX;
       setDragPos(Math.min(200, Math.max(-200, deltaX)));
-      if (deltaX > 30) setBgState("swipe-right"); else if (deltaX < -30) setBgState("swipe-left"); else setBgState("");
+      
+      if (deltaX > 30) setBgState("swipe-right"); 
+      else if (deltaX < -30) setBgState("swipe-left"); 
+      else setBgState("");
     };
 
     const handlePointerUp = () => {
       if (!isDragging) return;
-      setIsDragging(false); setBgState("");
+      setIsDragging(false);
+      setBgState("");
       if(cardRef.current) cardRef.current.classList.add('resetting');
-      if (dragPos > 100) makeChoice('right'); else if (dragPos < -100) makeChoice('left'); else setDragPos(0);
+
+      if (dragPos > 100) makeChoice('right'); 
+      else if (dragPos < -100) makeChoice('left'); 
+      else setDragPos(0);
     };
 
     const getFlaskGlow = (val) => val > 60 ? '#10b981' : val > 30 ? '#f59e0b' : '#ef4444';
     const getTimeClass = () => currentCard?.isBoss ? 'theme-boss' : day <= 5 ? 'theme-morning' : day <= 10 ? 'theme-day' : day <= 15 ? 'theme-evening' : 'theme-night';
 
-    // === ЭКРАН СТАРТА И ГАЛЕРЕИ ===
+    // UI Отрисовка
     if (gameState === 'start') {
       return (
         <div className="flex flex-col items-center justify-center h-screen px-6 text-center animate-fade-in relative theme-morning">
