@@ -8,7 +8,6 @@
   
   <link rel="manifest" href="manifest.json">
   <script>
-    // Регистрация Service Worker для работы офлайн
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
@@ -52,7 +51,16 @@
     body.critical-budget { filter: grayscale(0.8); }
     body.critical-budget .glass-panel { animation: flicker 4s infinite; border-color: rgba(255,0,0,0.3); }
     
-    .screen-crack { position: fixed; inset: 0; z-index: 99; pointer-events: none; opacity: 0; transition: opacity 0.5s; background-image: radial-gradient(circle at 50% 20%, transparent 20%, rgba(0,0,0,0.8) 150%), linear-gradient(45deg, transparent 48%, rgba(255,255,255,0.2) 49%, rgba(0,0,0,0.5) 50%, transparent 51%), linear-gradient(-45deg, transparent 48%, rgba(255,255,255,0.2) 49%, rgba(0,0,0,0.5) 50%, transparent 51%); }
+    /* ИСПРАВЛЕНИЕ: Реалистичные трещины стекла вместо креста */
+    .screen-crack { 
+        position: fixed; inset: 0; z-index: 99; pointer-events: none; opacity: 0; transition: opacity 0.5s; 
+        background: 
+            linear-gradient(105deg, transparent 49.5%, rgba(255,255,255,0.7) 49.8%, rgba(0,0,0,0.8) 50%, transparent 50.2%),
+            linear-gradient(-35deg, transparent 45%, rgba(255,255,255,0.6) 45.3%, rgba(0,0,0,0.7) 45.5%, transparent 45.8%),
+            linear-gradient(15deg, transparent 65%, rgba(255,255,255,0.5) 65.3%, rgba(0,0,0,0.6) 65.5%, transparent 65.8%),
+            linear-gradient(-80deg, transparent 35%, rgba(255,255,255,0.6) 35.3%, rgba(0,0,0,0.8) 35.5%, transparent 35.8%);
+        backdrop-filter: blur(1.5px);
+    }
     body.critical-safety .screen-crack { opacity: 1; }
 
     .vignette-anger { position: fixed; inset: 0; z-index: 30; pointer-events: none; box-shadow: inset 0 0 150px rgba(225, 29, 72, 0); transition: box-shadow 1s; }
@@ -105,7 +113,8 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 
-    #share-badge-wrap { position: fixed; top: -9999px; left: 0; width: 600px; height: 800px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; box-sizing: border-box; z-index: -1000;}
+    /* ИСПРАВЛЕНИЕ: Абсолютное позиционирование с нулевой прозрачностью для идеального захвата html2canvas */
+    #share-badge-wrap { position: absolute; top: 0; left: 0; width: 600px; height: 800px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; box-sizing: border-box; z-index: -1000; opacity: 0; pointer-events: none;}
     .badge-logo { font-size: 6rem; margin-bottom: 20px; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.5));} .badge-title { font-size: 3.5rem; font-weight: 900; margin: 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px;} .badge-sub { font-size: 1.8rem; color: #94a3b8; margin-bottom: 40px; font-weight: bold;} .badge-days { font-size: 9rem; font-weight: 900; margin: 0; line-height: 1; color: #f8fafc; text-shadow: 0 10px 30px rgba(0,0,0,0.5); } .badge-days-label { font-size: 2.2rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 40px; font-weight: 900;} .badge-rank { font-size: 2.8rem; font-weight: 700; color: #fbbf24; background: rgba(255,255,255,0.1); padding: 20px 50px; border-radius: 30px; border: 2px solid rgba(251, 191, 36, 0.5); text-align: center; line-height: 1.2;} .badge-watermark { margin-top: 40px; font-size: 1.2rem; color: rgba(255,255,255,0.3); letter-spacing: 2px; }
   </style>
 </head>
@@ -333,7 +342,7 @@
             
             // Применяем перк "Корпоратив"
             setStats({ safety: 50, budget: 50, loyalty: activePerk === 'party' ? 70 : 50 });
-            if (activePerk === 'party') setActivePerk(null); // Тратим перк
+            if (activePerk === 'party') setActivePerk(null);
 
             const shuffled = [...deck].sort(() => Math.random() - 0.5);
             setCurrentCard(shuffled[0]); setNextCard(shuffled[1]);
@@ -349,7 +358,6 @@
     const gameOverSequence = () => {
         setIsBurning(true);
         localStorage.removeItem('smena_save'); setHasSave(false);
-        // Выдаем монеты за прожитые смены
         const earnedCoins = Math.floor(day / 10);
         if (earnedCoins > 0) addCoins(earnedCoins);
 
@@ -357,7 +365,7 @@
             setGameState('gameover');
             vibrate([500, 200, 500]);
             setTimeout(() => AudioEngine.stamp(), 1500); 
-        }, 1000); // Ждем пока карточка сгорит
+        }, 1000); 
     };
 
     useEffect(() => {
@@ -469,17 +477,17 @@
 
     const getFlaskGlow = (val) => val > 60 ? '#10b981' : val > 30 ? '#f59e0b' : '#ef4444';
     const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 10 ? 'theme-day' : day <= 15 ? 'theme-evening' : 'theme-night';
-
-    // ВЫЧИСЛЯЕМ АВАТАР (Если лояльность низкая - аватар злится)
     const currentAvatar = currentCard ? ((stats.loyalty < 30 && !currentCard.isUrgent) ? "🤬" : currentCard.avatar) : "";
 
-    // ЭКРАН МАГАЗИНА
+    // ИСПРАВЛЕНИЕ: Кнопки НАЗАД
     if (showShop) {
         return (
             <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col animate-fade-in">
                 <div className="flex justify-between items-center mb-6">
-                    <button onClick={() => setShowShop(false)} className="text-slate-400 text-xl font-bold cursor-pointer hover:text-white">← Назад</button>
-                    <div className="bg-amber-500/20 text-amber-400 px-4 py-2 rounded-full font-black border border-amber-500/50">💰 {coins} СОТ-монет</div>
+                    <button onClick={() => setShowShop(false)} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg active:scale-95 transition-transform">
+                        <span className="text-xl leading-none">←</span> Назад
+                    </button>
+                    <div className="bg-amber-500/20 text-amber-400 px-4 py-2 rounded-full font-black border border-amber-500/50 whitespace-nowrap">💰 {coins}</div>
                 </div>
                 <h2 className="text-2xl font-black text-white mb-2">Черный рынок</h2>
                 <p className="text-sm text-slate-400 mb-6">Монеты даются за каждые 10 прожитых смен. Перки действуют на одну игру.</p>
@@ -496,8 +504,8 @@
                                         <div className="text-[11px] text-slate-400">{perk.desc}</div>
                                     </div>
                                 </div>
-                                <button onClick={() => buyPerk(perk)} disabled={!canBuy && !isActive} className={`px-4 py-2 rounded-full font-black text-sm ${isActive ? 'bg-blue-500 text-white' : canBuy ? 'bg-amber-500 text-slate-900 hover:scale-105' : 'bg-slate-700 text-slate-500'}`}>
-                                    {isActive ? 'АКТИВЕН' : `${perk.cost} 🪙`}
+                                <button onClick={() => buyPerk(perk)} disabled={!canBuy && !isActive} className={`px-4 py-2 rounded-full font-black text-sm min-w-[80px] ${isActive ? 'bg-blue-500 text-white' : canBuy ? 'bg-amber-500 text-slate-900 hover:scale-105' : 'bg-slate-700 text-slate-500'}`}>
+                                    {isActive ? 'АКТИВ' : `${perk.cost} 🪙`}
                                 </button>
                             </div>
                         )
@@ -507,16 +515,19 @@
         );
     }
 
-    if (showGallery) { /* Код галереи ачивок остался прежним */
+    // ИСПРАВЛЕНИЕ: Кнопки НАЗАД
+    if (showGallery) {
         return (
             <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col animate-fade-in">
-                <button onClick={() => setShowGallery(false)} className="text-slate-400 text-xl font-bold mb-6 hover:text-white">← Назад</button>
+                <button onClick={() => setShowGallery(false)} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg mb-6 active:scale-95 transition-transform w-max">
+                    <span className="text-xl leading-none">←</span> Назад
+                </button>
                 <h2 className="text-2xl font-black text-white mb-6 tracking-wide">🎖️ Ачивки ({achievements.length}/6)</h2>
                 <div className="grid grid-cols-2 gap-4 pb-10">
                     {ACHIEVEMENTS_LIST.map(ach => {
                         const isUnlocked = achievements.includes(ach.id);
                         return (
-                            <div key={ach.id} className={`p-4 rounded-xl border ${isUnlocked ? 'bg-slate-800 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-slate-900 border-slate-700 opacity-50'} flex flex-col items-center text-center`}>
+                            <div key={ach.id} className={`p-4 rounded-xl border ${isUnlocked ? 'bg-slate-800 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-slate-900 border-slate-700 opacity-50'} flex flex-col items-center text-center transition-all`}>
                                 <div className="text-4xl mb-3">{isUnlocked ? ach.icon : '❓'}</div>
                                 <div className="font-bold text-[12px] text-white mb-1 uppercase tracking-wider leading-tight">{isUnlocked ? ach.title : 'Скрыто'}</div>
                                 {isUnlocked && <div className="text-[10px] text-slate-400 leading-tight mt-1">{ach.desc}</div>}
