@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smena-cache-v1';
+const CACHE_NAME = 'smena-cache-v2'; // Изменили версию для сброса кэша
 const urlsToCache = [
   './index.html',
   './manifest.json',
@@ -10,7 +10,23 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+});
+
+// Умная очистка старых версий игры
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
 });
 
 self.addEventListener('fetch', event => {
