@@ -3,6 +3,7 @@
   "short_name": "СМЕНА",
   "start_url": "./index.html",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#020617",
   "theme_color": "#0f172a",
   "description": "Симулятор специалиста по охране труда",
