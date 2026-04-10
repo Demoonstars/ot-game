@@ -1,6 +1,6 @@
 /* =========================================================
    ФАЙЛ: js/CardEngine.jsx
-   Движок свайпов, пружинная физика, 3D-Параллакс
+   Движок свайпов (ИСПРАВЛЕННЫЙ: Pointer Events + Capture)
 ========================================================= */
 
 const { useRef, useState, useEffect, useImperativeHandle } = React;
@@ -112,13 +112,9 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         if (leftInd) leftInd.style.opacity = x < -30 ? Math.min((Math.abs(x)-30)/50, 1) : 0;
         if (rightInd) rightInd.style.opacity = x > 30 ? Math.min((Math.abs(x)-30)/50, 1) : 0;
 
-        // ==========================================
-        // ГЛАВНОЕ ИСПРАВЛЕНИЕ БАГА ПРОСВЕЧИВАНИЯ:
-        // ==========================================
+        // Плавное проявление нижней карты при свайпе (убирает баг просвечивания)
         const nextCardDOM = document.getElementById('next-card-element');
         if (nextCardDOM) {
-            // Если карта стоит по центру (x = 0), нижняя карта имеет opacity = 0 (её нет).
-            // Как только начинаем тянуть (x > 20), она плавно появляется.
             const swipeProgress = Math.min(Math.abs(x) / 60, 1);
             nextCardDOM.style.opacity = state.current.isFlying ? 1 : swipeProgress;
         }
@@ -142,31 +138,42 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     };
 
+    // --- НОВЫЕ POINTER EVENTS ---
     const handlePointerDown = (e) => {
-        if (isBurning) return;
+        if (isBurning || state.current.isFlying) return;
+        // Захватываем курсор/палец, чтобы свайп не срывался при быстром движении
+        e.target.setPointerCapture(e.pointerId); 
         state.current.isDragging = true;
-        state.current.startX = (e.clientX || (e.touches && e.touches[0].clientX)) - state.current.x;
-        state.current.startY = (e.clientY || (e.touches && e.touches[0].clientY)) - state.current.y;
+        state.current.startX = e.clientX - state.current.x;
+        state.current.startY = e.clientY - state.current.y;
     };
 
     const handlePointerMove = (e) => {
-        if (!state.current.isDragging && e.type === 'mousemove' && !isBurning) {
+        // Легкий параллакс от мыши, если не тянем карту
+        if (!state.current.isDragging && e.pointerType === 'mouse' && !isBurning && !state.current.isFlying) {
             const rect = cardRef.current.getBoundingClientRect();
             state.current.rx = -((e.clientY - rect.top - rect.height/2) / rect.height) * 20; 
             state.current.ry = ((e.clientX - rect.left - rect.width/2) / rect.width) * 20;
             updateTransform(); 
             return;
         }
+        
         if (!state.current.isDragging) return;
         
-        state.current.x = ((e.clientX || (e.touches && e.touches[0].clientX)) - state.current.startX) * 0.8; 
-        state.current.y = ((e.clientY || (e.touches && e.touches[0].clientY)) - state.current.startY) * 0.8;
+        // Физика натяжения
+        state.current.x = (e.clientX - state.current.startX) * 0.8; 
+        state.current.y = (e.clientY - state.current.startY) * 0.8;
         updateTransform();
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e) => {
         if (!state.current.isDragging) return;
+        
+        try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
+        
         state.current.isDragging = false;
+        
+        // Проверяем, пройдена ли граница свайпа
         if (state.current.x > SWIPE_THRESHOLD) triggerSwipe('right');
         else if (state.current.x < -SWIPE_THRESHOLD) triggerSwipe('left');
         else {
@@ -184,6 +191,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         onSwipe(direction);
     };
 
+    // Гироскоп для мобилок (Остается без изменений)
     useEffect(() => {
         const handleOrientation = (e) => {
             if (state.current.isDragging || state.current.isFlying || isBurning) return;
@@ -195,14 +203,13 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         return () => window.removeEventListener('deviceorientation', handleOrientation);
     }, [isBurning]);
 
+    // Сброс физики при загрузке новой карты
     useEffect(() => {
         state.current = { x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null };
         if(cardRef.current) cardRef.current.style.transform = `translate3d(0,0,0)`;
         
-        // Скрываем следующую карту при появлении новой
         const nextCardDOM = document.getElementById('next-card-element');
         if (nextCardDOM) nextCardDOM.style.opacity = 0;
-        
     }, [card]);
 
     useImperativeHandle(card?.ref, () => ({
@@ -214,18 +221,21 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     if (!card) return null;
 
     return (
-        <div className="card-stack" onMouseMove={handlePointerMove} onTouchMove={handlePointerMove} onMouseUp={handlePointerUp} onTouchEnd={handlePointerUp} onMouseLeave={handlePointerUp}>
+        <div className="card-stack">
             
-            {/* НИЖНЯЯ КАРТА. По умолчанию скрыта (opacity-0). Появляется через JS при свайпе */}
             {nextCard && (
                 <div id="next-card-element" className="next-card flex flex-col items-center justify-center opacity-0" style={{willChange: 'opacity'}}>
                     <div className="text-[6rem] opacity-20 grayscale">{nextCard.avatar}</div>
                 </div>
             )}
             
+            {/* События теперь висят прямо на самой карточке */}
             <div ref={cardRef} className={`swipe-card cursor-grab active:cursor-grabbing ${card.isUrgent?'urgent':''} ${isBurning ? 'animate-burn' : ''}`}
-                style={{ transition: state.current.isFlying ? 'transform 0.4s ease-out' : 'none' }}
-                onMouseDown={handlePointerDown} onTouchStart={handlePointerDown}
+                style={{ transition: state.current.isFlying ? 'transform 0.4s ease-out' : 'none', touchAction: 'none' }}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
             >
                 <div className="glare"></div>
                 <div className="choice-indicator choice-left">{card.leftChoice}</div>
