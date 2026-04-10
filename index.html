@@ -26,11 +26,13 @@
                     blob: { '0%': { transform: 'translate(0, 0) scale(1)' }, '33%': { transform: 'translate(30px, -50px) scale(1.1)' }, '66%': { transform: 'translate(-20px, 20px) scale(0.9)' }, '100%': { transform: 'translate(0, 0) scale(1)' } },
                     flicker: { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.3 }, '70%': { opacity: 0.8 }, '80%': { opacity: 0.1 } },
                     burn: { '0%': { filter: 'brightness(1) sepia(0)', transform: 'translateY(0) scale(1)' }, '50%': { filter: 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)', transform: 'translateY(-20px) scale(0.95)' }, '100%': { filter: 'brightness(0) sepia(1) hue-rotate(-50deg) saturate(10)', transform: 'translateY(50px) scale(0.8)', opacity: 0 } },
-                    slideUp: { '0%': { transform: 'translateY(100%)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } }
+                    slideUp: { '0%': { transform: 'translateY(100%)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
+                    hazardFlash: { '0%, 100%': { opacity: 0.8, boxShadow: 'inset 0 0 50px rgba(225, 29, 72, 0.4)' }, '50%': { opacity: 1, boxShadow: 'inset 0 0 100px rgba(225, 29, 72, 0.8)' } }
                 },
                 animation: {
                     shake: 'shake 0.3s infinite', blob: 'blob 7s infinite alternate', flicker: 'flicker 3s infinite',
-                    burn: 'burn 1.2s forwards cubic-bezier(0.4, 0, 0.2, 1)', slideUp: 'slideUp 0.3s ease-out forwards'
+                    burn: 'burn 1.2s forwards cubic-bezier(0.4, 0, 0.2, 1)', slideUp: 'slideUp 0.3s ease-out forwards',
+                    hazard: 'hazardFlash 1.5s infinite'
                 }
             }
         }
@@ -46,12 +48,17 @@
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
     body { margin: 0; padding: 0; background-color: #020617; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; height: 100dvh; width: 100vw; transition: filter 0.5s; }
 
-    body.critical-budget { filter: grayscale(0.8); }
+    /* ДИНАМИЧЕСКИЙ ВИЗУАЛ ПРИ ПАДЕНИИ ПОКАЗАТЕЛЕЙ */
+    body.critical-budget { filter: grayscale(0.7); }
     body.critical-budget .glass-panel { animation: flicker 4s infinite; border-color: rgba(255,0,0,0.3); }
-    .screen-crack { position: fixed; inset: 0; z-index: 99; pointer-events: none; opacity: 0; transition: opacity 0.5s; background-image: linear-gradient(115deg, transparent 49.8%, rgba(255,255,255,0.9) 50%, rgba(0,0,0,0.8) 50.2%, transparent 50.4%), linear-gradient(-45deg, transparent 49.8%, rgba(255,255,255,0.9) 50%, rgba(0,0,0,0.8) 50.2%, transparent 50.4%), radial-gradient(circle at 50% 50%, transparent 10%, rgba(0,0,0,0.5) 100%); backdrop-filter: blur(2px) contrast(1.1); }
-    body.critical-safety .screen-crack { opacity: 1; }
+    
+    /* ИДЕАЛЬНОЕ РЕШЕНИЕ ДЛЯ БЕЗОПАСНОСТИ: СИГНАЛЬНАЯ ЛЕНТА (Оставляет текст читаемым) */
+    .hazard-border { position: fixed; inset: 0; z-index: 99; pointer-events: none; opacity: 0; transition: opacity 0.5s; border: 12px solid transparent; border-image: repeating-linear-gradient(45deg, #fbbf24, #fbbf24 20px, #1e293b 20px, #1e293b 40px) 12; }
+    body.critical-safety .hazard-border { opacity: 1; animation: hazard 2s infinite; }
+    
+    /* Злость коллектива (Красная виньетка) */
     .vignette-anger { position: fixed; inset: 0; z-index: 30; pointer-events: none; box-shadow: inset 0 0 150px rgba(225, 29, 72, 0); transition: box-shadow 1s; }
-    body.critical-loyalty .vignette-anger { box-shadow: inset 0 0 200px rgba(225, 29, 72, 0.4); animation: heartbeat 2s infinite; }
+    body.critical-loyalty .vignette-anger { box-shadow: inset 0 0 200px rgba(153, 27, 27, 0.6); animation: heartbeat 2s infinite; }
 
     .mesh-container { position: fixed; inset: 0; z-index: -2; overflow: hidden; background: #020617; }
     .blob { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.4; transition: background-color 2s ease; }
@@ -90,8 +97,9 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 
-    #share-badge-wrap { position: absolute; top: 0; left: 0; width: 600px; height: 900px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; box-sizing: border-box; z-index: -1000; opacity: 0; pointer-events: none;}
-    .badge-logo { font-size: 6rem; margin-bottom: 20px; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.5));} 
+    /* ГЕНЕРАТОР УДОСТОВЕРЕНИЯ (Исправлен баг обрезки/пустоты на мобилках) */
+    .share-badge { position: absolute; top: -9999px; left: -9999px; width: 600px; height: 900px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; box-sizing: border-box; z-index: -10; opacity: 0; pointer-events: none;}
+    .badge-logo { font-size: 6rem; margin-bottom: 20px; text-shadow: 0 10px 10px rgba(0,0,0,0.5);} 
     .badge-title { font-size: 3.5rem; font-weight: 900; margin: 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px;} 
     .badge-sub { font-size: 1.8rem; color: #94a3b8; margin-bottom: 30px; font-weight: bold;} 
     .badge-days { font-size: 8rem; font-weight: 900; margin: 0; line-height: 1; color: #f8fafc; text-shadow: 0 10px 30px rgba(0,0,0,0.5); } 
@@ -161,7 +169,6 @@
       return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed relative z-10" />;
   };
 
-  // СЦЕНАРИИ С ID ДЛЯ СЮЖЕТНЫХ АРОК
   const ALL_SCENARIOS = [
     { id: 'c1', isUrgent: false, character: "Дежурный специалист", role: "РЭО", avatar: "🪜", text: "У нас перегорела люстра в холле лобби. Высота 5 метров. Леса собирать долго, давай ребята две стремянки поставят и доску между ними кинут?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "РАЗРЕШИТЬ", onLeft: { safety: 15, budget: -10, loyalty: -5, msg: "Люстра не горит. Гости жалуются на темноту." }, onRight: { safety: -30, budget: 5, loyalty: 5, msg: "Доска треснула. Рабочий упал с 5 метров. Уголовное дело." } },
     { id: 'c2', isUrgent: false, character: "Шеф-повар", role: "Служба питания", avatar: "🍳", text: "Фритюрница искрит на контактах. Электрик будет только завтра. Я замотал изолентой, банкет надо выдавать. Работаем?", leftChoice: "ВЫВЕСТИ ИЗ СТРОЯ", rightChoice: "ГОТОВЬ АККУРАТНО", onLeft: { safety: 15, budget: -15, loyalty: -10, msg: "Меню банкета сорвано. Отель платит неустойку." }, onRight: { safety: -40, budget: 15, loyalty: 0, msg: "Короткое замыкание. Пожар в горячем цеху, эвакуация." } },
@@ -175,7 +182,6 @@
     { id: 'c10', isUrgent: false, character: "Уборщица", role: "ГХ", avatar: "🪣", text: "Закончились желтые предупреждающие таблички 'Осторожно, мокрый пол'. Я просто швабру поперек коридора положу, чтобы не ходили?", leftChoice: "ПОЛОЖИТЬ ШВАБРУ", rightChoice: "КУПИТЬ ТАБЛИЧКИ", onLeft: { safety: -20, budget: 5, loyalty: 0, msg: "Гость споткнулся о вашу швабру и сломал нос. Гениальное решение." }, onRight: { safety: 15, budget: -5, loyalty: 10, msg: "Заказали таблички. Все по правилам." } }
   ];
 
-  // СПЕЦИАЛЬНЫЕ СЮЖЕТНЫЕ КАРТОЧКИ (Добавляются динамически)
   const BOSS_CARDS = {
       fire_show_consequence: { id: 'boss1', isUrgent: true, character: "МЧС", role: "Инспектор", avatar: "🚒", text: "На видео блогера видно, что вы разрешили заклеить датчики дыма. Это грубейшее нарушение ППБ! Штраф полмиллиона или суд?", leftChoice: "ПЛАТИТЬ ШТРАФ", rightChoice: "СУДИТЬСЯ", onLeft: { safety: 0, budget: -50, loyalty: -10, msg: "Бюджет уничтожен штрафом." }, onRight: { safety: -40, budget: 0, loyalty: -20, msg: "Суд проигран. Вас лишили должности." } }
   };
@@ -209,9 +215,9 @@
     // МЕТА-ИГРА И ПРОФИЛИРОВАНИЕ
     const [achievements, setAchievements] = useState([]);
     const [coins, setCoins] = useState(0);
-    const [office, setOffice] = useState([]); // Купленные предметы мебели
-    const [playstyle, setPlaystyle] = useState({ s: 0, b: 0, l: 0 }); // Сбор статистики для радара
-    const [flags, setFlags] = useState({}); // Сюжетные флаги
+    const [office, setOffice] = useState([]); 
+    const [playstyle, setPlaystyle] = useState({ s: 0, b: 0, l: 0 }); 
+    const [flags, setFlags] = useState({}); 
     
     // ИНТЕРФЕЙС
     const [showGallery, setShowGallery] = useState(false);
@@ -219,9 +225,10 @@
     const [phoneState, setPhoneState] = useState({ open: false, tab: 'chats' });
     const [hasSave, setHasSave] = useState(false);
 
-    // ПАСХАЛКА В ТЕЛЕФОНЕ (Используем данные из контекста)
+    // ПАСХАЛКА В ТЕЛЕФОНЕ
     const [messages, setMessages] = useState([
-        { id: 1, from: "Юлия Борисовна", text: "Антон, завтра выездная комиссия ГИТ в СОФРИНО-ПАРК. Проверь журналы инструктажей, чтобы без косяков! Штрафы платить не будем.", read: false }
+        { id: 1, from: "Юлия Борисовна", text: "Антон, завтра выездная комиссия ГИТ в СОФРИНО-ПАРК. Проверь журналы инструктажей, чтобы без косяков! Штрафы платить не будем.", read: false },
+        { id: 2, from: "Алексей (Стройка)", text: "Слушай, мы тут на траншее кабель порвали, искрит жестко. Я пока парням сказал изолентой мотнуть. Норм?", read: false }
     ]);
     const [contactsUsed, setContactsUsed] = useState({ vv: false, buh: false, prof: false });
 
@@ -253,15 +260,6 @@
         }
     }, [day, stats, currentCard, nextCard, contactsUsed, timeLeft, flags, playstyle, gameState, feedback, swipingOut]);
 
-    // ДИНАМИКА CSS
-    useEffect(() => {
-        if (gameState === 'playing') {
-            if (stats.budget < 30) document.body.classList.add('critical-budget'); else document.body.classList.remove('critical-budget');
-            if (stats.safety < 30) document.body.classList.add('critical-safety'); else document.body.classList.remove('critical-safety');
-            if (stats.loyalty < 30) document.body.classList.add('critical-loyalty'); else document.body.classList.remove('critical-loyalty');
-        } else document.body.className = ''; 
-    }, [stats, gameState]);
-
     // ТАЙМЕР ПУША ТЕЛЕФОНА
     useEffect(() => {
         let hintTimer;
@@ -269,7 +267,7 @@
         const canUseContact = !contactsUsed.vv || !contactsUsed.buh || !contactsUsed.prof;
         
         if (needsHelp && canUseContact && gameState === 'playing' && !phoneState.open) {
-            AudioEngine.msg(); // Звук уведомления
+            AudioEngine.msg(); 
             hintTimer = setTimeout(() => {}, 7000);
         }
         return () => clearTimeout(hintTimer);
@@ -304,17 +302,14 @@
         return "Бог Охраны Труда";
     };
 
-    // ГЕНЕРАТОР РАДАРА (SVG Полигон)
+    // ГЕНЕРАТОР РАДАРА
     const renderRadarChart = () => {
         const total = (playstyle.s + playstyle.b + playstyle.l) || 1;
         const sNorm = (playstyle.s / total) * 40;
         const bNorm = (playstyle.b / total) * 40;
         const lNorm = (playstyle.l / total) * 40;
         
-        // Центр 50,50. 
-        const pS = `50,${50 - sNorm}`; // Верх
-        const pB = `${50 + bNorm * 0.866},${50 + bNorm * 0.5}`; // Низ право
-        const pL = `${50 - lNorm * 0.866},${50 + lNorm * 0.5}`; // Низ лево
+        const pS = `50,${50 - sNorm}`; const pB = `${50 + bNorm * 0.866},${50 + bNorm * 0.5}`; const pL = `${50 - lNorm * 0.866},${50 + lNorm * 0.5}`;
         const points = `${pS} ${pB} ${pL}`;
 
         let typeText = "Универсал";
@@ -333,9 +328,7 @@
                     <line x1="50" y1="50" x2="50" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
                     <line x1="50" y1="50" x2="84.6" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
                     <line x1="50" y1="50" x2="15.4" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                    
                     <polygon points={points} fill="rgba(56, 189, 248, 0.6)" stroke="#38bdf8" strokeWidth="2" strokeLinejoin="round"/>
-                    
                     <text x="50" y="5" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Правила</text>
                     <text x="90" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Бюджет</text>
                     <text x="10" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Люди</text>
@@ -358,7 +351,6 @@
             localStorage.removeItem('smena_save'); setHasSave(false);
             setDay(1); setContactsUsed({ vv: false, buh: false, prof: false }); setTimeLeft(8); setFlags({}); setPlaystyle({ s: 0, b: 0, l: 0 });
             
-            // ПРИМЕНЯЕМ ПЕРКИ КАБИНЕТА
             const startS = 50 + (office.includes('plant') ? 5 : 0);
             const startB = 50 + (office.includes('safe') ? 5 : 0);
             const startL = 50 + (office.includes('chair') ? 5 : 0);
@@ -408,14 +400,8 @@
 
       const effects = direction === 'left' ? currentCard.onLeft : currentCard.onRight;
       
-      // СБОР СТАТИСТИКИ ДЛЯ РАДАРА
-      setPlaystyle(prev => ({
-          s: prev.s + (effects.safety > 0 ? effects.safety : 0),
-          b: prev.b + (effects.budget > 0 ? effects.budget : 0),
-          l: prev.l + (effects.loyalty > 0 ? effects.loyalty : 0)
-      }));
+      setPlaystyle(prev => ({ s: prev.s + (effects.safety > 0 ? effects.safety : 0), b: prev.b + (effects.budget > 0 ? effects.budget : 0), l: prev.l + (effects.loyalty > 0 ? effects.loyalty : 0) }));
 
-      // СЮЖЕТНЫЕ ФЛАГИ
       const newFlags = { ...flags };
       if (currentCard.setFlag && direction === 'right') newFlags[currentCard.setFlag] = true;
       setFlags(newFlags);
@@ -448,7 +434,6 @@
               setDay(prev => prev + 1);
               let newDeck = deck.slice(1);
               
-              // ИНЪЕКЦИЯ СЮЖЕТНЫХ КАРТОЧЕК
               if (newFlags.fire_show && !newFlags.fire_show_done && day > 5) {
                   newDeck.unshift(BOSS_CARDS.fire_show_consequence);
                   newFlags.fire_show_done = true; setFlags(newFlags);
@@ -462,7 +447,6 @@
       }, 600);
     };
 
-    // ФУНКЦИИ ТЕЛЕФОНА
     const useContact = (type) => {
         if (contactsUsed[type]) return;
         AudioEngine.ring(); vibrate([100, 50, 100]);
@@ -500,20 +484,51 @@
       if (dragPos > 100) makeChoice('right'); else if (dragPos < -100) makeChoice('left'); else setDragPos(0);
     };
 
+    // ИСПРАВЛЕННАЯ ЛОГИКА ГЕНЕРАЦИИ УДОСТОВЕРЕНИЯ (Без обрезки и темного фона)
     const shareResult = async () => {
-        setIsSharing(true); await new Promise(r => setTimeout(r, 100)); 
+        setIsSharing(true);
+        // Даем кнопке время перерисоваться
+        await new Promise(r => setTimeout(r, 100)); 
+
         const badgeElem = document.getElementById('share-badge-wrap');
+        const gameoverContainer = document.getElementById('gameover-container');
+        
+        // ВАЖНО: Разрешаем overflow на время создания скриншота, чтобы не было обрезки
+        const oldBodyOverflow = document.body.style.overflow;
+        if (gameoverContainer) gameoverContainer.style.overflow = 'visible';
+        document.body.style.overflow = 'visible';
+
+        // Перемещаем бейдж в видимую зону (но прячем за основным фоном с помощью z-index)
+        badgeElem.style.top = '0px';
+        badgeElem.style.left = '0px';
+        badgeElem.style.opacity = '1';
+
+        // Ждем перерисовки браузера
+        await new Promise(r => setTimeout(r, 200));
+
         try {
-            const canvas = await html2canvas(badgeElem, { scale: 2, backgroundColor: '#0f172a' });
+            const canvas = await html2canvas(badgeElem, { scale: 2, backgroundColor: '#0f172a', windowWidth: 600, windowHeight: 900 });
             const dataUrl = canvas.toDataURL('image/png'); const blob = await (await fetch(dataUrl)).blob();
             const file = new File([blob], 'smena-result.png', { type: 'image/png' });
+            
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({ title: 'Мой результат в СМЕНЕ', text: `Я продержался ${day} смен! Звание: ${getRank(day)}`, files: [file] });
             } else {
                 const a = document.createElement('a'); a.href = dataUrl; a.download = `Smena_${day}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
             }
-        } catch (e) { alert("Не удалось создать изображение."); }
-        setIsSharing(false);
+        } catch (e) { 
+            console.error(e);
+            alert("Не удалось создать изображение."); 
+        } finally {
+            // Возвращаем все как было
+            document.body.style.overflow = oldBodyOverflow;
+            if (gameoverContainer) gameoverContainer.style.overflow = 'hidden';
+            
+            badgeElem.style.top = '-9999px';
+            badgeElem.style.left = '-9999px';
+            badgeElem.style.opacity = '0';
+            setIsSharing(false);
+        }
     };
 
     const getFlaskGlow = (val) => val > 60 ? '#10b981' : val > 30 ? '#f59e0b' : '#ef4444';
@@ -521,20 +536,19 @@
     const currentAvatar = currentCard ? ((stats.loyalty < 30 && !currentCard.isUrgent) ? "🤬" : currentCard.avatar) : "";
     const unreadCount = messages.filter(m => !m.read).length;
 
-    // МЕНЮ КАБИНЕТА
+    // ИСПРАВЛЕНЫ КНОПКИ "НАЗАД"
     if (showOfficeUI) {
         return (
             <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col animate-fade-in">
                 <div className="flex justify-between items-center mb-6">
-                    <button onClick={() => setShowOfficeUI(false)} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg active:scale-95 transition-transform">
+                    <button onClick={() => setShowOfficeUI(false)} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg active:scale-95 transition-transform w-max">
                         <span className="text-xl leading-none">←</span> Назад
                     </button>
-                    <div className="bg-amber-500/20 text-amber-400 px-4 py-2 rounded-full font-black border border-amber-500/50 whitespace-nowrap">💰 {coins}</div>
+                    <div className="bg-amber-500/20 text-amber-400 px-4 py-2 rounded-full font-black border border-amber-500/50 whitespace-nowrap shadow-lg">💰 {coins}</div>
                 </div>
                 <h2 className="text-2xl font-black text-white mb-2">Мой Кабинет</h2>
-                <p className="text-sm text-slate-400 mb-6">Покупай мебель за СОТ-монеты. Баффы работают на все следующие игры всегда!</p>
+                <p className="text-sm text-slate-400 mb-6">Покупай мебель за СОТ-монеты. Баффы работают всегда!</p>
                 
-                {/* Визуализация кабинета */}
                 <div className="w-full h-40 bg-slate-800 rounded-2xl border-4 border-slate-700 mb-8 relative flex items-end justify-center overflow-hidden shadow-inner">
                     <div className="absolute bottom-0 w-full h-1/2 bg-slate-900 border-t border-slate-700"></div>
                     <div className="text-6xl relative z-10 mx-2">{office.includes('chair') ? '💺' : '🪑'}</div>
@@ -548,7 +562,7 @@
                         const isOwned = office.includes(item.id);
                         const canBuy = coins >= item.cost && !isOwned;
                         return (
-                            <div key={item.id} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${isOwned ? 'bg-blue-900/50 border-blue-500/50' : 'bg-slate-800 border-slate-600'}`}>
+                            <div key={item.id} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${isOwned ? 'bg-blue-900/50 border-blue-500/50' : 'bg-slate-800 border-slate-600 shadow-lg'}`}>
                                 <div className="flex items-center gap-4">
                                     <div className="text-4xl">{item.icon}</div>
                                     <div>
@@ -556,7 +570,7 @@
                                         <div className="text-[11px] text-emerald-400 font-bold">{item.desc}</div>
                                     </div>
                                 </div>
-                                <button onClick={() => buyItem(item)} disabled={!canBuy && !isOwned} className={`px-4 py-2 rounded-full font-black text-sm min-w-[80px] ${isOwned ? 'bg-transparent text-blue-400 border border-blue-400' : canBuy ? 'bg-amber-500 text-slate-900 hover:scale-105' : 'bg-slate-700 text-slate-500'}`}>
+                                <button onClick={() => buyItem(item)} disabled={!canBuy && !isOwned} className={`px-4 py-2 rounded-full font-black text-sm min-w-[80px] ${isOwned ? 'bg-transparent text-blue-400 border border-blue-400' : canBuy ? 'bg-amber-500 text-slate-900 hover:scale-105 shadow-md active:scale-95' : 'bg-slate-700 text-slate-500'}`}>
                                     {isOwned ? 'КУПЛЕНО' : `${item.cost} 🪙`}
                                 </button>
                             </div>
@@ -573,7 +587,7 @@
                 <button onClick={() => setShowGallery(false)} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg mb-6 active:scale-95 transition-transform w-max">
                     <span className="text-xl leading-none">←</span> Назад
                 </button>
-                <h2 className="text-2xl font-black text-white mb-6 tracking-wide">🎖️ Ачивки ({achievements.length}/6)</h2>
+                <h2 className="text-2xl font-black text-white mb-6 tracking-wide">🎖️ Ачивки ({achievements.length}/5)</h2>
                 <div className="grid grid-cols-2 gap-4 pb-10">
                     {ACHIEVEMENTS_LIST.map(ach => {
                         const isUnlocked = achievements.includes(ach.id);
@@ -592,8 +606,10 @@
 
     if (gameState === 'gameover') {
       return (
-        <>
-            <div id="share-badge-wrap">
+        <div id="gameover-container" className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative z-20 bg-[#0f172a] overflow-hidden">
+            
+            {/* БЕЙДЖ ШЕРИНГА (Скрыт за основным фоном с помощью z-index: -10) */}
+            <div id="share-badge-wrap" className="share-badge">
                 <div className="badge-logo">🛡️ СМЕНА</div>
                 <div className="badge-title">Удостоверение СОТ</div>
                 <div className="badge-sub">Официальный результат</div>
@@ -601,8 +617,6 @@
                 <div className="badge-days">{day}</div>
                 <div className="badge-days-label" style={{marginTop:'10px', marginBottom:'40px'}}>смен</div>
                 <div className="badge-rank">{getRank(day)}</div>
-                
-                {/* SVG РАДАР ДЛЯ ШЕРИНГА */}
                 <div className="radar-box">
                     <svg viewBox="0 0 100 100" width="300" height="300">
                         <polygon points="50,10 84.6,70 15.4,70" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
@@ -611,7 +625,6 @@
                         <line x1="50" y1="50" x2="50" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
                         <line x1="50" y1="50" x2="84.6" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
                         <line x1="50" y1="50" x2="15.4" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                        
                         <polygon points={(function(){
                             const tot = (playstyle.s + playstyle.b + playstyle.l) || 1;
                             const ns = (playstyle.s/tot)*40, nb = (playstyle.b/tot)*40, nl = (playstyle.l/tot)*40;
@@ -625,26 +638,26 @@
                 <div className="badge-watermark">Психологический профиль руководителя СОТ</div>
             </div>
 
-            <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative z-20 bg-[#0f172a] overflow-y-auto">
-              <div className="text-7xl mb-2 mt-10">💀</div>
-              <h1 className="text-4xl font-black text-rose-500 uppercase tracking-widest drop-shadow-lg mb-4">Игра окончена</h1>
-              <div className="bg-slate-800 border-2 border-rose-900 p-4 rounded-3xl mb-4 max-w-sm w-full shadow-2xl">
-                  <p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium leading-relaxed">{deathReason}</p>
-              </div>
-              <div className="text-5xl font-black text-blue-400 mb-2 drop-shadow-lg">{day} <span className="text-xl">смен</span></div>
-              
-              {renderRadarChart()}
+            <div className="absolute inset-0 overflow-y-auto flex flex-col items-center p-6">
+                <div className="text-7xl mb-2 mt-10">💀</div>
+                <h1 className="text-4xl font-black text-rose-500 uppercase tracking-widest drop-shadow-lg mb-4">Игра окончена</h1>
+                <div className="bg-slate-800 border-2 border-rose-900 p-4 rounded-3xl mb-4 max-w-sm w-full shadow-2xl">
+                    <p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium leading-relaxed">{deathReason}</p>
+                </div>
+                <div className="text-5xl font-black text-blue-400 mb-2 drop-shadow-lg">{day} <span className="text-xl">смен</span></div>
+                
+                {renderRadarChart()}
 
-              <div className="stamp">УВОЛЕН</div>
-              
-              <div className="flex flex-col w-full max-w-xs gap-3 relative z-50 mt-6 mb-10">
-                 <button onClick={shareResult} disabled={isSharing} className={`bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black py-4 w-full rounded-full border border-blue-400 shadow-[0_0_20px_rgba(37,99,235,0.4)] tracking-widest uppercase flex items-center justify-center gap-2 ${isSharing ? 'opacity-70' : 'active:scale-95'}`}>
-                     {isSharing ? '⌛ Генерируем...' : '📸 Поделиться'}
-                 </button>
-                 <button onClick={() => setGameState('start')} className="bg-slate-700 text-white font-black py-4 w-full rounded-full border border-slate-500 shadow-lg tracking-widest uppercase active:scale-95 transition-transform">В Главное меню</button>
-              </div>
+                <div className="stamp">УВОЛЕН</div>
+                
+                <div className="flex flex-col w-full max-w-xs gap-3 mt-6 mb-10 pb-10">
+                   <button onClick={shareResult} disabled={isSharing} className={`bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black py-4 w-full rounded-full border border-blue-400 shadow-[0_0_20px_rgba(37,99,235,0.4)] tracking-widest uppercase flex items-center justify-center gap-2 ${isSharing ? 'opacity-70' : 'active:scale-95 transition-transform'}`}>
+                       {isSharing ? '⌛ Генерируем...' : '📸 Поделиться'}
+                   </button>
+                   <button onClick={() => setGameState('start')} className="bg-slate-700 text-white font-black py-4 w-full rounded-full border border-slate-500 shadow-lg tracking-widest uppercase active:scale-95 transition-transform">В Главное меню</button>
+                </div>
             </div>
-        </>
+        </div>
       );
     }
 
@@ -654,7 +667,6 @@
           <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
           <div className="grid-overlay"></div><div className="noise"></div>
           
-          {/* Стол в меню */}
           <div className="w-full flex justify-center items-end h-32 mb-4 relative">
              <div className="text-8xl relative z-10 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)]">👷</div>
              {office.includes('chair') && <div className="absolute right-10 bottom-0 text-5xl">💺</div>}
@@ -668,8 +680,8 @@
               {hasSave && <button onClick={() => startGame(true)} className="bg-emerald-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(16,185,129,0.4)] uppercase active:scale-95 transition-transform">Продолжить</button>}
               <button onClick={() => startGame(false)} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 active:scale-95 transition-transform">Новая игра</button>
               <div className="flex gap-2">
-                  <button onClick={() => setShowOfficeUI(true)} className="flex-1 bg-slate-800 text-amber-400 font-bold py-3 rounded-full border border-slate-600 text-sm flex justify-center gap-2 items-center active:scale-95 transition-transform">🚪 Кабинет</button>
-                  <button onClick={() => setShowGallery(true)} className="flex-1 bg-slate-800 text-slate-300 font-bold py-3 rounded-full border border-slate-600 text-sm active:scale-95 transition-transform">🏆 Ачивки</button>
+                  <button onClick={() => setShowOfficeUI(true)} className="flex-1 bg-slate-800 text-amber-400 font-bold py-3 rounded-full border border-slate-600 text-sm flex justify-center gap-2 items-center active:scale-95 transition-transform shadow-lg">🚪 Кабинет</button>
+                  <button onClick={() => setShowGallery(true)} className="flex-1 bg-slate-800 text-slate-300 font-bold py-3 rounded-full border border-slate-600 text-sm active:scale-95 transition-transform shadow-lg">🏆 Ачивки</button>
               </div>
           </div>
         </div>
@@ -683,34 +695,33 @@
            onMouseMove={handlePointerMove} onTouchMove={handlePointerMove} onMouseUp={handlePointerUp} onTouchEnd={handlePointerUp} onMouseLeave={handlePointerUp}>
         
         <div className="screen-crack"></div>
+        <div className="hazard-border"></div>
         <div className="vignette-anger"></div>
 
         <div className="mesh-container"><div className="blob blob-1 w-[500px] h-[500px] top-[-20%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[450px] h-[450px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '3s'}}></div></div>
         <div className="grid-overlay"></div><div className="noise"></div>
         <div className={`tunnel-vision ${isCritical ? 'critical' : ''}`}></div>
 
-        {/* КНОПКА СМАРТФОНА */}
         <button onClick={markMessagesRead} className="phone-btn">
             📱 {unreadCount > 0 && <div className="phone-badge">{unreadCount}</div>}
         </button>
 
-        {/* ИНТЕРФЕЙС СМАРТФОНА */}
         {phoneState.open && (
             <div className="absolute inset-0 z-[55] bg-slate-900/90 backdrop-blur-md flex flex-col p-4 animate-slideUp">
                 <div className="bg-slate-800 flex-1 rounded-3xl border-4 border-slate-700 shadow-2xl flex flex-col overflow-hidden relative">
                     <div className="bg-slate-900 p-4 flex justify-between items-center border-b border-slate-700">
                         <div className="font-black text-xl text-white">Смартфон СОТ</div>
-                        <button onClick={() => setPhoneState({...phoneState, open: false})} className="text-slate-400 text-2xl hover:text-white">×</button>
+                        <button onClick={() => setPhoneState({...phoneState, open: false})} className="text-slate-400 text-3xl font-bold hover:text-white active:scale-90 transition-transform">×</button>
                     </div>
                     
                     <div className="flex bg-slate-800 p-2 gap-2 border-b border-slate-700">
-                        <button onClick={()=>setPhoneState({...phoneState, tab: 'chats'})} className={`flex-1 py-2 rounded-xl font-bold text-sm ${phoneState.tab === 'chats' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>💬 Чаты</button>
-                        <button onClick={()=>setPhoneState({...phoneState, tab: 'contacts'})} className={`flex-1 py-2 rounded-xl font-bold text-sm ${phoneState.tab === 'contacts' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>📇 Контакты</button>
+                        <button onClick={()=>setPhoneState({...phoneState, tab: 'chats'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'chats' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>💬 Чаты</button>
+                        <button onClick={()=>setPhoneState({...phoneState, tab: 'contacts'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'contacts' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>📇 Контакты</button>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
                         {phoneState.tab === 'chats' && messages.map(msg => (
-                            <div key={msg.id} className="bg-slate-700 p-4 rounded-2xl rounded-tl-none self-start max-w-[85%] border border-slate-600 relative">
+                            <div key={msg.id} className="bg-slate-700 p-4 rounded-2xl rounded-tl-none self-start max-w-[85%] border border-slate-600 relative shadow-md">
                                 <div className="text-blue-400 font-bold text-[10px] uppercase mb-1">{msg.from}</div>
                                 <div className="text-white text-sm">{msg.text}</div>
                             </div>
@@ -718,26 +729,26 @@
                         
                         {phoneState.tab === 'contacts' && (
                             <>
-                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center">
+                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
                                     <div>
                                         <div className="text-white font-bold">В.В. (Директор)</div>
                                         <div className="text-emerald-400 text-[10px] uppercase">Восстановит всё до 60%</div>
                                     </div>
-                                    <button onClick={()=>useContact('vv')} disabled={contactsUsed.vv} className={`px-4 py-2 rounded-lg font-black text-sm ${!contactsUsed.vv ? 'bg-emerald-500 text-slate-900' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
+                                    <button onClick={()=>useContact('vv')} disabled={contactsUsed.vv} className={`px-4 py-2 rounded-lg font-black text-sm active:scale-95 transition-transform ${!contactsUsed.vv ? 'bg-emerald-500 text-slate-900 shadow-md' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
                                 </div>
-                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center">
+                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
                                     <div>
                                         <div className="text-white font-bold">Бухгалтерия</div>
                                         <div className="text-emerald-400 text-[10px] uppercase">+30 Бюджет, -20 Лояльность</div>
                                     </div>
-                                    <button onClick={()=>useContact('buh')} disabled={contactsUsed.buh} className={`px-4 py-2 rounded-lg font-black text-sm ${!contactsUsed.buh ? 'bg-blue-500 text-white' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
+                                    <button onClick={()=>useContact('buh')} disabled={contactsUsed.buh} className={`px-4 py-2 rounded-lg font-black text-sm active:scale-95 transition-transform ${!contactsUsed.buh ? 'bg-blue-500 text-white shadow-md' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
                                 </div>
-                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center">
+                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
                                     <div>
                                         <div className="text-white font-bold">Глава Профсоюза</div>
                                         <div className="text-emerald-400 text-[10px] uppercase">+30 Лояльность, -20 Бюджет</div>
                                     </div>
-                                    <button onClick={()=>useContact('prof')} disabled={contactsUsed.prof} className={`px-4 py-2 rounded-lg font-black text-sm ${!contactsUsed.prof ? 'bg-rose-500 text-white' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
+                                    <button onClick={()=>useContact('prof')} disabled={contactsUsed.prof} className={`px-4 py-2 rounded-lg font-black text-sm active:scale-95 transition-transform ${!contactsUsed.prof ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
                                 </div>
                             </>
                         )}
@@ -801,8 +812,8 @@
         </div>
 
         <div className="p-4 pb-6 w-full max-w-[400px] mx-auto flex justify-between gap-3 z-20">
-            <button onClick={()=>makeChoice('left')} className="flex-1 bg-rose-100/90 text-rose-700 border-b-4 border-rose-300 font-black py-3 px-2 rounded-2xl uppercase text-[10px] sm:text-[11px] tracking-wider active:scale-95 transition-all flex items-center justify-center leading-tight shadow-lg backdrop-blur-md cursor-pointer min-h-[56px] text-center">{currentCard?.leftChoice || 'ОТКАЗАТЬ'}</button>
-            <button onClick={()=>makeChoice('right')} className="flex-1 bg-emerald-100/90 text-emerald-700 border-b-4 border-emerald-300 font-black py-3 px-2 rounded-2xl uppercase text-[10px] sm:text-[11px] tracking-wider active:scale-95 transition-all flex items-center justify-center leading-tight shadow-lg backdrop-blur-md cursor-pointer min-h-[56px] text-center">{currentCard?.rightChoice || 'РАЗРЕШИТЬ'}</button>
+            <button onClick={()=>makeChoice('left')} className="flex-1 bg-rose-100/90 text-rose-700 border-b-4 border-rose-300 font-black py-3 px-2 rounded-2xl uppercase text-[10px] sm:text-[11px] tracking-wider active:scale-95 transition-transform flex items-center justify-center leading-tight shadow-lg backdrop-blur-md cursor-pointer min-h-[56px] text-center">{currentCard?.leftChoice || 'ОТКАЗАТЬ'}</button>
+            <button onClick={()=>makeChoice('right')} className="flex-1 bg-emerald-100/90 text-emerald-700 border-b-4 border-emerald-300 font-black py-3 px-2 rounded-2xl uppercase text-[10px] sm:text-[11px] tracking-wider active:scale-95 transition-transform flex items-center justify-center leading-tight shadow-lg backdrop-blur-md cursor-pointer min-h-[56px] text-center">{currentCard?.rightChoice || 'РАЗРЕШИТЬ'}</button>
         </div>
       </div>
     );
