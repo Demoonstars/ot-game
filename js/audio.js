@@ -1,59 +1,92 @@
 /* =========================================================
    ФАЙЛ: js/audio.js
-   Супер-Аудиодвижок и визуальные утилиты
+   ШЕДЕВРАЛЬНЫЙ АУДИОДВИЖОК (Процедурная реверберация и ADSR)
 ========================================================= */
 
 const AudioEngine = (() => {
     let ctx = null; 
     let enabled = false; 
+    let convolver = null; // Виртуальная комната (эхо)
+    let masterGain = null;
     let tensionOsc = null; 
     let tensionGain = null;
     let ambientActive = false; 
-    let humOsc, humGain, heartOsc, heartGain;
+    let humOsc, humGain, heartOsc1, heartOsc2, heartGain;
 
-    // Инициализация аудиоконтекста (вызывается при старте игры)
+    // ГЕНЕРАТОР ВИРТУАЛЬНОЙ КОМНАТЫ (Impulse Response)
+    const createReverb = () => {
+        const length = ctx.sampleRate * 1.5; // Длина эха 1.5 секунды
+        const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+        for (let i = 0; i < 2; i++) {
+            const channel = impulse.getChannelData(i);
+            for (let j = 0; j < length; j++) {
+                // Белый шум с экспоненциальным затуханием (имитация отражения звука от стен)
+                channel[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, 4); 
+            }
+        }
+        convolver = ctx.createConvolver();
+        convolver.buffer = impulse;
+    };
+
     const init = () => { 
         if (!ctx) { 
             ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+            masterGain = ctx.createGain();
+            masterGain.connect(ctx.destination);
+            createReverb();
         } 
         if (ctx.state === 'suspended') ctx.resume(); 
         enabled = true; 
-        startAmbient(); 
     };
 
-    // Продвинутый синтез звука с фильтром низких частот (для сочных свайпов и ударов)
-    const playTone = (freq, type, duration, vol = 0.1, slideFreq = null, useFilter = false) => {
+    // УМНЫЙ СИНТЕЗАТОР С ОГИБАЮЩЕЙ (ADSR)
+    const playTone = (freq, type, duration, vol = 0.1, isReverb = false) => {
         if (!enabled || !ctx) return;
         const osc = ctx.createOscillator(); 
         const gain = ctx.createGain();
         osc.type = type; 
-
-        if (useFilter) {
-            const filter = ctx.createBiquadFilter();
-            filter.type = 'lowpass'; 
-            filter.frequency.setValueAtTime(2000, ctx.currentTime);
-            filter.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + duration);
-            osc.connect(filter); 
-            filter.connect(gain);
-        } else {
-            osc.connect(gain); 
-        }
         
-        gain.connect(ctx.destination);
+        // Маршрутизация: пускать звук сухо или через эхо-комнату
+        if (isReverb) {
+            osc.connect(gain);
+            gain.connect(convolver);
+            convolver.connect(masterGain);
+        } else {
+            osc.connect(gain);
+            gain.connect(masterGain);
+        }
+
         osc.frequency.setValueAtTime(freq, ctx.currentTime);
         
-        if (slideFreq) {
-            osc.frequency.exponentialRampToValueAtTime(slideFreq, ctx.currentTime + duration);
-        }
-        
-        gain.gain.setValueAtTime(vol, ctx.currentTime); 
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        // ADSR Огибающая (Мягкий старт и плавный спад, чтобы не было щелчков)
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.05); // Attack
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration); // Decay
         
         osc.start(); 
-        osc.stop(ctx.currentTime + duration);
+        osc.stop(ctx.currentTime + duration + 0.1);
+    };
+
+    // Шуршащий звук бумажной карточки (Белый шум через фильтр)
+    const playPaperSwipe = () => {
+        if (!enabled || !ctx) return;
+        const bufferSize = ctx.sampleRate * 0.2; // 0.2 секунды
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        
+        const noise = ctx.createBufferSource(); noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 1000;
+        const gain = ctx.createGain();
+        
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+        
+        noise.connect(filter); filter.connect(gain); gain.connect(masterGain);
+        noise.start();
     };
     
-    // Нагнетание напряжения (Pre-cognition - при натяжении карты)
+    // Напряжение при натягивании карточки (Низкий рокот)
     const setTension = (intensity) => {
         if (!enabled || !ctx) return;
         if (intensity <= 0.1) {
@@ -61,68 +94,48 @@ const AudioEngine = (() => {
             return;
         }
         if (!tensionOsc) {
-            tensionOsc = ctx.createOscillator(); 
-            tensionGain = ctx.createGain();
-            tensionOsc.type = 'sawtooth'; 
-            tensionOsc.frequency.value = 50; 
-            
-            const lpf = ctx.createBiquadFilter(); 
-            lpf.type = 'lowpass'; 
-            lpf.frequency.value = 300;
-            
-            tensionOsc.connect(lpf); 
-            lpf.connect(tensionGain); 
-            tensionGain.connect(ctx.destination);
-            tensionGain.gain.value = 0.001; 
-            tensionOsc.start();
+            tensionOsc = ctx.createOscillator(); tensionGain = ctx.createGain();
+            tensionOsc.type = 'sawtooth'; tensionOsc.frequency.value = 40; 
+            const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 200;
+            tensionOsc.connect(lpf); lpf.connect(tensionGain); tensionGain.connect(masterGain);
+            tensionGain.gain.value = 0.001; tensionOsc.start();
         }
-        tensionGain.gain.setTargetAtTime(intensity * 0.15, ctx.currentTime, 0.1); // Мягкая громкость
-        tensionOsc.frequency.setTargetAtTime(40 + (intensity * 60), ctx.currentTime, 0.1);
+        tensionGain.gain.setTargetAtTime(intensity * 0.2, ctx.currentTime, 0.1); 
+        tensionOsc.frequency.setTargetAtTime(30 + (intensity * 40), ctx.currentTime, 0.1);
     };
 
-    // Генеративный фоновый эмбиент (Adaptive Ambient)
+    // Эмбиент с двойным саб-басом
     const startAmbient = () => {
         if(!enabled || ambientActive) return;
         ambientActive = true;
         
-        // Базовый гул предприятия
-        humOsc = ctx.createOscillator(); 
-        humGain = ctx.createGain();
-        humOsc.type = 'sine'; 
-        humOsc.frequency.value = 60;
+        humOsc = ctx.createOscillator(); humGain = ctx.createGain();
+        humOsc.type = 'sine'; humOsc.frequency.value = 55;
         humGain.gain.value = 0.05;
-        humOsc.connect(humGain).connect(ctx.destination);
+        humOsc.connect(humGain).connect(masterGain);
         humOsc.start();
 
-        // Сердцебиение (Пульс катастрофы)
-        heartOsc = ctx.createOscillator(); 
+        // Сердцебиение из двух расстроенных осцилляторов (плотный бас)
+        heartOsc1 = ctx.createOscillator(); heartOsc2 = ctx.createOscillator(); 
         heartGain = ctx.createGain();
-        heartOsc.type = 'sine'; 
-        heartOsc.frequency.value = 45;
+        heartOsc1.type = 'sine'; heartOsc1.frequency.value = 45;
+        heartOsc2.type = 'sine'; heartOsc2.frequency.value = 46; // Легкий диссонанс
         heartGain.gain.value = 0; 
         
-        // LFO для создания ритма пульсации сердца
-        const lfo = ctx.createOscillator(); 
-        lfo.type = 'square'; 
-        lfo.frequency.value = 1.2;
-        const lfoGain = ctx.createGain(); 
-        lfoGain.gain.value = 1;
+        const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 1.3;
+        const lfoGain = ctx.createGain(); lfoGain.gain.value = 1;
         lfo.connect(lfoGain).connect(heartGain.gain);
         lfo.start();
         
-        heartOsc.connect(heartGain).connect(ctx.destination);
-        heartOsc.start();
+        heartOsc1.connect(heartGain).connect(masterGain);
+        heartOsc2.connect(heartGain).connect(masterGain);
+        heartOsc1.start(); heartOsc2.start();
     };
 
-    // Реакция эмбиента на изменение показателей
     const updateAmbient = (stats) => {
         if (!enabled || !ambientActive) return;
-        // Если Безопасность < 30, включаем тревожное сердцебиение
-        if (stats.safety < 30) {
-            heartGain.gain.setTargetAtTime(0.5, ctx.currentTime, 1);
-        } else {
-            heartGain.gain.setTargetAtTime(0, ctx.currentTime, 1);
-        }
+        if (stats.safety < 30) heartGain.gain.setTargetAtTime(0.6, ctx.currentTime, 1);
+        else heartGain.gain.setTargetAtTime(0, ctx.currentTime, 1);
     };
 
     const stopAmbient = () => {
@@ -130,59 +143,29 @@ const AudioEngine = (() => {
         humGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
         heartGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
         setTimeout(() => { 
-            if(humOsc) humOsc.stop(); 
-            if(heartOsc) heartOsc.stop(); 
+            if(humOsc) humOsc.stop(); if(heartOsc1) heartOsc1.stop(); if(heartOsc2) heartOsc2.stop();
             ambientActive = false; 
         }, 600);
     };
 
     return {
         init, 
-        swipe: () => playTone(200, 'sine', 0.3, 0.15, 50, true), // Ветреный свайп с фильтром
-        stamp: () => { playTone(150, 'square', 0.5, 0.4, 20, true); playTone(80, 'sawtooth', 0.4, 0.3, 10); }, // Мощный удар поражения
-        winStamp: () => { playTone(400, 'sine', 0.1, 0.2, 800); setTimeout(() => playTone(600, 'sine', 0.4, 0.2, 1200), 100); }, // Звук победы
-        alarm: () => { playTone(600, 'square', 0.1, 0.05); setTimeout(() => playTone(800, 'square', 0.1, 0.05), 100); },
+        swipe: () => playPaperSwipe(), // Новый звук свайпа
+        stamp: () => { 
+            playTone(100, 'square', 0.4, 0.5, true); // Мощный удар в реверберацию
+            playTone(50, 'sawtooth', 0.3, 0.4, true); 
+        }, 
+        winStamp: () => { 
+            playTone(400, 'sine', 0.6, 0.2, true); 
+            setTimeout(() => playTone(600, 'sine', 0.8, 0.2, true), 150); 
+        },
+        alarm: () => { playTone(600, 'square', 0.2, 0.05); setTimeout(() => playTone(800, 'square', 0.2, 0.05), 100); },
         ring: () => { for(let i=0; i<3; i++) { setTimeout(() => playTone(1000, 'sine', 0.1, 0.05), i*200); setTimeout(() => playTone(1300, 'sine', 0.1, 0.05), i*200 + 100); } },
-        error: () => playTone(150, 'sawtooth', 0.4, 0.2, 50, true),
-        msg: () => playTone(1500, 'sine', 0.1, 0.05, 2000),
-        buy: () => { playTone(800, 'sine', 0.1, 0.1, 1200); setTimeout(() => playTone(1200, 'sine', 0.2, 0.1, 1600), 100); },
-        setTension, 
-        updateAmbient, 
-        stopAmbient
+        error: () => playTone(150, 'sawtooth', 0.4, 0.2, false),
+        msg: () => playTone(1500, 'sine', 0.1, 0.05),
+        buy: () => { playTone(800, 'sine', 0.2, 0.1); setTimeout(() => playTone(1200, 'sine', 0.4, 0.1), 100); },
+        setTension, updateAmbient, stopAmbient, startAmbient
     };
 })();
 
-/* =========================================================
-   ВИЗУАЛЬНЫЕ УТИЛИТЫ И ЭФФЕКТЫ
-========================================================= */
-
-// Тактильный отклик для мобильных устройств
-const vibrate = (pattern) => { 
-    if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.vibrate) {
-        window.navigator.vibrate(pattern); 
-    }
-};
-
-// Генератор частиц при свайпе
-const burstParticles = (direction) => {
-    const color = direction === 'left' ? '#e11d48' : '#10b981';
-    for (let i = 0; i < 30; i++) {
-       const p = document.createElement('div'); 
-       p.className = 'particle'; 
-       const size = Math.random() * 10 + 5;
-       p.style.width = p.style.height = `${size}px`; 
-       p.style.backgroundColor = color; 
-       p.style.boxShadow = `0 0 15px ${color}`;
-       p.style.left = `${window.innerWidth/2}px`; 
-       p.style.top = `${window.innerHeight/2}px`;
-       p.style.setProperty('--tx', `${(Math.random()-0.5)*500}px`); 
-       p.style.setProperty('--ty', `${(Math.random()-0.5)*500 - 100}px`);
-       document.body.appendChild(p); 
-       setTimeout(() => p.remove(), 800);
-    }
-};
-
-// Экспорт в глобальную область видимости
 window.AudioEngine = AudioEngine;
-window.vibrate = vibrate;
-window.burstParticles = burstParticles;
