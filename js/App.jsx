@@ -218,6 +218,28 @@ function Game() {
       return () => clearTimeout(hintTimer);
   }, [stats, contactsUsed, gameState, phoneState.open, hasWarnedLowStats]);
 
+   // --- НОВОЕ: ЖИВОЙ ЧАТ С СОТРУДНИКАМИ ---
+  useEffect(() => {
+      // Запускаем чат только когда идет игра
+      if (gameState === 'playing' && window.ChatEngine) {
+          window.ChatEngine.start((newMessage) => {
+              // Добавляем новое сообщение в начало списка
+              setMessages(prev => [newMessage, ...prev]);
+              
+              // Проигрываем звук уведомления и зажигаем телефон
+              if (window.AudioEngine) window.AudioEngine.msg();
+              if (window.vibrate) window.vibrate([100, 50]);
+              setPhoneState(prev => ({ ...prev, ringing: true }));
+          });
+      } else {
+          // Останавливаем, если мы в меню или проиграли
+          if (window.ChatEngine) window.ChatEngine.stop();
+      }
+      
+      // Очистка при размонтировании
+      return () => { if (window.ChatEngine) window.ChatEngine.stop(); };
+  }, [gameState]);
+
   // ОБРАБОТКА СВАЙПА
   const handleSwipe = (direction) => {
     clearInterval(timerRef.current);
