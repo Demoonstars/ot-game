@@ -116,10 +116,12 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         // CSS Матрица для 3D
         cardRef.current.style.transform = `translate3d(${x}px, ${y + Math.abs(x)*0.05}px, 0) rotateZ(${x * 0.05}deg) rotateY(${(x * 0.08) + ry}deg) rotateX(${(Math.abs(x) * 0.03) + rx}deg)`;
         
-        const glare = cardRef.current.querySelector('.glare');
+      const glare = cardRef.current.querySelector('.glare');
         if (glare) {
-            glare.style.opacity = Math.min(Math.abs(x)/150 + Math.abs(ry)/50, 0.5);
-            glare.style.background = `linear-gradient(${(x * 0.5 + ry * 2) + 180}deg, rgba(255,255,255,1) 0%, transparent 60%)`;
+            glare.style.opacity = Math.min(Math.abs(x)/150 + Math.abs(ry)/50, 0.7);
+            // ИСПРАВЛЕНИЕ БАГА С ПРОСВЕЧИВАНИЕМ:
+            glare.style.background = `linear-gradient(${(x * 0.5 + ry * 2) + 180}deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 60%)`;
+            glare.style.mixBlendMode = 'soft-light'; // Мягкое наложение вместо жесткого overlay
         }
 
         const leftInd = cardRef.current.querySelector('.choice-left'); 
