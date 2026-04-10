@@ -1,6 +1,6 @@
 /* =========================================================
    ФАЙЛ: js/App.jsx
-   Главное Ядро Игры (Game Loop, UI, Сохранения)
+   Главное Ядро Игры (Game Loop, Меню, Магазин, Сохранения)
 ========================================================= */
 
 const { useState, useEffect, useRef } = React;
@@ -58,7 +58,6 @@ const LoyaltyBar = ({ value, id }) => {
 /* --- ГЛАВНЫЙ КОМПОНЕНТ ИГРЫ --- */
 function Game() {
   const [gameState, setGameState] = useState('start'); 
-  const [activeCampaignId, setActiveCampaignId] = useState('main');
   
   const [day, setDay] = useState(1);
   const [stats, setStats] = useState({ safety: 50, budget: 50, loyalty: 50 });
@@ -130,33 +129,41 @@ function Game() {
       if (days <= 5) return "Стажер с блокнотом"; 
       if (days <= 10) return "Младший инспектор"; 
       if (days <= 15) return "Гроза нарушителей"; 
+      if (days <= 25) return "Эксперт по ТБ"; 
       return "Бог Охраны Труда"; 
   };
 
-  // СТАРТ ИГРЫ
-  const startGame = (campaignId) => {
-      if (window.AudioEngine) window.AudioEngine.init(); 
+  // СТАРТ МЕГА-СМЕНЫ (Смешиваем все 30 карт)
+  const startMegaShift = () => {
+      if (window.AudioEngine) {
+          window.AudioEngine.init(); 
+          window.AudioEngine.startAmbient();
+      }
       if (window.vibrate) window.vibrate(50); 
       
-      setActiveCampaignId(campaignId);
       setFeedback(null); setIsBurning(false); setIsVictory(false); 
       setPhoneState({ open: false, tab: 'chats', ringing: false }); 
       setActionLog([]); setHasWarnedLowStats(false);
       setDay(1); setContactsUsed({ vv: false, buh: false, prof: false }); 
       setTimeLeft(8); setPlaystyle({ s: 0, b: 0, l: 0 }); setFlags({});
       
-      // Применяем пассивные баффы от базы
+      // Баффы от кабинета
       setStats({ 
           safety: 50 + (territory.includes('t_fire') ? 10 : 0), 
           budget: 50 + (territory.includes('t_warehouse') ? 10 : 0), 
           loyalty: 50 + (territory.includes('t_med') ? 10 : 0) 
       });
 
-      let initialDeck = [...(window.CAMPAIGNS[campaignId] || window.CAMPAIGNS.main)]; 
-      initialDeck = initialDeck.sort(() => Math.random() - 0.5);
+      // СМЕШИВАЕМ ВСЕ БАЗЫ
+      let megaDeck = [
+          ...window.CAMPAIGNS.main, 
+          ...window.CAMPAIGNS.park, 
+          ...window.CAMPAIGNS.med
+      ]; 
+      megaDeck = megaDeck.sort(() => Math.random() - 0.5);
+      megaDeck[0].ref = engineRef; 
       
-      initialDeck[0].ref = engineRef; 
-      setDeck(initialDeck); setCurrentCard(initialDeck[0]); setNextCard(initialDeck[1]); 
+      setDeck(megaDeck); setCurrentCard(megaDeck[0]); setNextCard(megaDeck[1]); 
       setGameState('playing');
   };
 
@@ -214,6 +221,10 @@ function Game() {
   // ОБРАБОТКА СВАЙПА
   const handleSwipe = (direction) => {
     clearInterval(timerRef.current);
+    
+    // Аудио свайпа бумаги
+    if (window.AudioEngine) window.AudioEngine.swipe();
+
     const effects = direction === 'left' ? currentCard.onLeft : currentCard.onRight;
     
     setPlaystyle(prev => ({ s: prev.s + (effects.safety > 0 ? effects.safety : 0), b: prev.b + (effects.budget > 0 ? effects.budget : 0), l: prev.l + (effects.loyalty > 0 ? effects.loyalty : 0) }));
@@ -308,7 +319,106 @@ function Game() {
       }
   };
 
-  const getTimeClass = () => day <= 3 ? 'theme-morning' : day <= 7 ? 'theme-day' : day <= 10 ? 'theme-evening' : 'theme-night';
+  const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 15 ? 'theme-day' : day <= 25 ? 'theme-evening' : 'theme-night';
+
+  /* --- РЕНДЕР: ДОСТИЖЕНИЯ --- */
+  if (gameState === 'achievements') {
+      return (
+          <div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
+              <button onClick={() => setGameState('start')} className="absolute top-6 left-6 text-slate-400 text-3xl font-black active:scale-90 transition-transform">←</button>
+              <h2 className="text-3xl font-black uppercase tracking-widest text-emerald-400 mb-8">Удостоверения</h2>
+              
+              <div className="w-full max-w-md flex flex-col gap-4 overflow-y-auto pb-10 custom-scroll">
+                  {window.ACHIEVEMENTS_LIST.map(ach => {
+                      const isUnlocked = achievements.includes(ach.id);
+                      return (
+                          <div key={ach.id} className={`p-4 rounded-3xl border-2 flex items-center gap-4 transition-all ${isUnlocked ? 'bg-slate-800 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-900 border-slate-700 opacity-50 grayscale'}`}>
+                              <div className="text-4xl">{isUnlocked ? ach.icon : '🔒'}</div>
+                              <div>
+                                  <div className="font-black text-lg">{isUnlocked ? ach.title : 'Неизвестно'}</div>
+                                  <div className="text-sm text-slate-400 leading-tight">{isUnlocked ? ach.desc : 'Пройдите смену, чтобы узнать.'}</div>
+                              </div>
+                          </div>
+                      )
+                  })}
+              </div>
+          </div>
+      )
+  }
+
+  /* --- РЕНДЕР: КАБИНЕТ СОТ --- */
+  if (gameState === 'office') {
+      return (
+          <div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
+              <button onClick={() => setGameState('start')} className="absolute top-6 left-6 text-slate-400 text-3xl font-black active:scale-90 transition-transform">←</button>
+              <h2 className="text-3xl font-black uppercase tracking-widest text-blue-400 mb-2">Ваш Кабинет</h2>
+              <div className="bg-slate-800 px-6 py-2 rounded-full border border-slate-600 mb-8 font-black text-xl text-yellow-400 shadow-md">Бюджет: {coins} 🪙</div>
+              
+              <div className="w-full max-w-md flex flex-col gap-4 overflow-y-auto pb-10 custom-scroll">
+                  <p className="text-center text-slate-400 text-sm mb-2">Улучшения дают бонусы в начале каждой смены.</p>
+                  {window.TERRITORY_UPGRADES.map(upg => {
+                      const isOwned = territory.includes(upg.id);
+                      return (
+                          <div key={upg.id} className={`p-4 rounded-3xl border-2 flex justify-between items-center gap-3 transition-all ${isOwned ? 'bg-blue-900/30 border-blue-500' : 'bg-slate-800 border-slate-600'}`}>
+                              <div className="flex items-center gap-3">
+                                  <div className="text-3xl">{upg.icon}</div>
+                                  <div>
+                                      <div className="font-black text-[15px] leading-tight">{upg.name}</div>
+                                      <div className="text-[11px] text-emerald-400 uppercase font-bold mt-1">{upg.desc}</div>
+                                  </div>
+                              </div>
+                              {!isOwned ? (
+                                  <button onClick={() => {
+                                      if (coins >= upg.cost) {
+                                          if (window.AudioEngine) window.AudioEngine.buy();
+                                          setCoins(prev => { const n = prev - upg.cost; localStorage.setItem('smena_coins', n); return n; });
+                                          setTerritory(prev => { const n = [...prev, upg.id]; localStorage.setItem('smena_territory', JSON.stringify(n)); return n; });
+                                      } else {
+                                          if (window.AudioEngine) window.AudioEngine.error();
+                                      }
+                                  }} className={`px-4 py-2 rounded-xl font-black text-sm whitespace-nowrap shadow-md ${coins >= upg.cost ? 'bg-blue-600 active:scale-95' : 'bg-slate-700 text-slate-500'}`}>
+                                      {upg.cost} 🪙
+                                  </button>
+                              ) : (
+                                  <div className="text-blue-400 font-black text-sm px-2">КУПЛЕНО</div>
+                              )}
+                          </div>
+                      )
+                  })}
+              </div>
+          </div>
+      )
+  }
+
+  /* --- РЕНДЕР: МЕНЮ --- */
+  if (gameState === 'start') {
+    return (
+      <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center animate-fade-in relative theme-morning">
+        <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
+        <div className="grid-overlay"></div><div className="noise"></div>
+        
+        <div className="text-8xl mb-4 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)] relative z-10 mt-10">👷</div>
+        <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА 3.0</h1>
+        <p className="text-lg font-bold text-blue-400 mb-10 uppercase tracking-widest">Симулятор СОТ</p>
+        
+        <div className="w-full max-w-xs flex flex-col gap-4 relative z-50">
+            {/* КНОПКА СТАРТА - МЕГА СМЕНА */}
+            <button onClick={startMegaShift} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 active:scale-95 transition-transform">Начать Смену</button>
+            
+            <div className="flex gap-4 mt-2">
+                <button onClick={() => { if(window.AudioEngine) window.AudioEngine.init(); setGameState('office')}} className="flex-1 bg-slate-800 text-slate-200 font-black py-3 rounded-full text-sm shadow-lg uppercase border border-slate-600 active:scale-95 transition-transform flex flex-col items-center justify-center gap-1">
+                    <span>Ваш Кабинет</span>
+                    <span className="text-[10px] text-yellow-500">{coins} 🪙</span>
+                </button>
+                <button onClick={() => { if(window.AudioEngine) window.AudioEngine.init(); setGameState('achievements')}} className="flex-1 bg-slate-800 text-slate-200 font-black py-3 rounded-full text-sm shadow-lg uppercase border border-slate-600 active:scale-95 transition-transform flex flex-col items-center justify-center gap-1">
+                    <span>Удостоверения</span>
+                    <span className="text-[10px] text-emerald-400">{achievements.length} / 5</span>
+                </button>
+            </div>
+        </div>
+      </div>
+    );
+  }
 
   /* --- РЕНДЕР: ИГРА ОКОНЧЕНА --- */
   if (gameState === 'gameover') {
@@ -369,27 +479,7 @@ function Game() {
     );
   }
 
-  /* --- РЕНДЕР: МЕНЮ --- */
-  if (gameState === 'start') {
-    return (
-      <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center animate-fade-in relative theme-morning">
-        <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
-        <div className="grid-overlay"></div><div className="noise"></div>
-        
-        <div className="text-8xl mb-4 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)] relative z-10 mt-10">👷</div>
-        <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА 3.0</h1>
-        <p className="text-lg font-bold text-blue-400 mb-8 uppercase tracking-widest">Аттестация СОТ</p>
-        
-        <div className="w-full max-w-xs flex flex-col gap-3 relative z-50">
-            <button onClick={() => startGame('main')} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 active:scale-95 transition-transform">Базовый Обход</button>
-            <button onClick={() => startGame('park')} className="bg-emerald-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(16,185,129,0.6)] uppercase border-2 border-emerald-400 active:scale-95 transition-transform">Парк Отель</button>
-            <button onClick={() => startGame('med')} className="bg-rose-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(225,29,72,0.6)] uppercase border-2 border-rose-400 active:scale-95 transition-transform">Мед. Блок</button>
-        </div>
-      </div>
-    );
-  }
-
-  /* --- РЕНДЕР: ИГРА --- */
+  /* --- РЕНДЕР: ИГРОВОЙ ПРОЦЕСС --- */
   return (
     <div className={`flex flex-col h-[100dvh] overflow-hidden relative z-10 transition-all duration-1000 ${getTimeClass()}`}>
       <div className="hazard-border"></div><div className="vignette-anger"></div>
