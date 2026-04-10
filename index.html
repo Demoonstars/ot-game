@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>СМЕНА: Симулятор СОТ</title>
+  <title>СМЕНА 3.0: Симулятор СОТ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0f172a">
   
@@ -25,13 +25,14 @@
                     flicker: { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.3 }, '70%': { opacity: 0.8 }, '80%': { opacity: 0.1 } },
                     burn: { '0%': { filter: 'brightness(1) sepia(0)', transform: 'translateY(0) scale(1)' }, '50%': { filter: 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)', transform: 'translateY(-20px) scale(0.95)' }, '100%': { filter: 'brightness(0) sepia(1) hue-rotate(-50deg) saturate(10)', transform: 'translateY(50px) scale(0.8)', opacity: 0 } },
                     hazardFlash: { '0%, 100%': { opacity: 0.8, boxShadow: 'inset 0 0 50px rgba(225, 29, 72, 0.4)' }, '50%': { opacity: 1, boxShadow: 'inset 0 0 100px rgba(225, 29, 72, 0.8)' } },
+                    slideUp: { '0%': { transform: 'translateY(100%)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
                     predictPulse: { '0%, 100%': { transform: 'scale(1)', filter: 'drop-shadow(0 0 5px rgba(225,29,72,0.8))' }, '50%': { transform: 'scale(1.05)', filter: 'drop-shadow(0 0 15px rgba(225,29,72,1))' } },
                     phoneRing: { '0%, 100%': { transform: 'rotate(0deg) translateX(0)' }, '25%': { transform: 'rotate(-3deg) translateX(-3px)' }, '75%': { transform: 'rotate(3deg) translateX(3px)' } }
                 },
                 animation: {
                     shake: 'shake 0.3s infinite', blob: 'blob 7s infinite alternate', flicker: 'flicker 3s infinite',
                     burn: 'burn 1.2s forwards cubic-bezier(0.4, 0, 0.2, 1)', hazard: 'hazardFlash 1.5s infinite', 
-                    predictPulse: 'predictPulse 0.5s infinite', phoneRing: 'phoneRing 0.2s infinite'
+                    slideUp: 'slideUp 0.3s ease-out forwards', predictPulse: 'predictPulse 0.5s infinite', phoneRing: 'phoneRing 0.2s infinite'
                 }
             }
         }
@@ -44,71 +45,100 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
-    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
-    body { margin: 0; padding: 0; background-color: #020617; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; height: 100dvh; width: 100vw; transition: filter 0.5s; perspective: 1000px; }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; padding: 0; background-color: #020617; color: #f8fafc; overflow: hidden; height: 100dvh; width: 100vw; perspective: 1000px; transition: filter 0.5s; }
 
-    body.critical-budget { filter: grayscale(0.7); }
+    /* ГЛОБАЛЬНЫЕ ЭФФЕКТЫ ЧС */
+    body.critical-budget { filter: grayscale(0.7) contrast(1.2); }
     body.critical-budget .dashboard-panel { animation: flicker 4s infinite; }
     .hazard-border { position: fixed; inset: 0; z-index: 99; pointer-events: none; opacity: 0; transition: opacity 0.5s; border: 12px solid transparent; border-image: repeating-linear-gradient(45deg, #fbbf24, #fbbf24 20px, #1e293b 20px, #1e293b 40px) 12; }
     body.critical-safety .hazard-border { opacity: 1; animation: hazard 2s infinite; }
     .vignette-anger { position: fixed; inset: 0; z-index: 30; pointer-events: none; box-shadow: inset 0 0 150px rgba(225, 29, 72, 0); transition: box-shadow 1s; }
     body.critical-loyalty .vignette-anger { box-shadow: inset 0 0 200px rgba(153, 27, 27, 0.6); animation: heartbeat 2s infinite; }
 
+    /* ФОНЫ */
     .mesh-container { position: fixed; inset: 0; z-index: -2; overflow: hidden; background: #020617; }
     .blob { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.4; transition: background-color 2s ease; }
     .grid-overlay { position: fixed; inset: 0; z-index: -1; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 40px; }
+    .noise { position: fixed; inset: 0; z-index: -1; opacity: 0.04; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
 
     .theme-morning .blob-1 { background: #0ea5e9; } .theme-morning .blob-2 { background: #38bdf8; }
     .theme-day .blob-1 { background: #2563eb; } .theme-day .blob-2 { background: #10b981; }
     .theme-evening .blob-1 { background: #f59e0b; } .theme-evening .blob-2 { background: #7c3aed; }
     .theme-night .blob-1 { background: #1e293b; } .theme-night .blob-2 { background: #4c1d95; }
 
-    /* ДИЕГЕТИЧЕСКИЙ ИНТЕРФЕЙС (ПРИБОРЫ) */
-    .dashboard-panel { background: linear-gradient(to bottom, #1e293b, #0f172a); border-bottom: 3px solid #334155; box-shadow: 0 15px 30px rgba(0,0,0,0.8), inset 0 2px 10px rgba(255,255,255,0.1); border-radius: 0 0 32px 32px; position: relative; z-index: 20; padding: 15px 10px 20px 10px; transition: transform 0.2s; }
-    .dashboard-panel::before, .dashboard-panel::after { content: '+'; position: absolute; top: 10px; color: #475569; font-size: 14px; font-weight: 900; } .dashboard-panel::before { left: 25px; } .dashboard-panel::after { right: 25px; }
+    /* ПРЕМИАЛЬНЫЙ UI (ПАНЕЛЬ ПРИБОРОВ) */
+    .dashboard-panel { 
+        background: linear-gradient(180deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.95) 100%); 
+        border-bottom: 2px solid rgba(255,255,255,0.1); 
+        box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1); 
+        border-radius: 0 0 32px 32px; position: relative; z-index: 20; padding: 15px; 
+        backdrop-filter: blur(10px);
+    }
+    .dashboard-panel::before, .dashboard-panel::after { content: '+'; position: absolute; top: 10px; color: #475569; font-size: 14px; font-weight: 900; } 
+    .dashboard-panel::before { left: 25px; } .dashboard-panel::after { right: 25px; }
 
-    .analog-gauge { width: 70px; height: 40px; background: #020617; border-radius: 70px 70px 0 0; border: 3px solid #334155; border-bottom: none; position: relative; overflow: hidden; box-shadow: inset 0 5px 10px rgba(0,0,0,0.8); display: flex; justify-content: center; transition: all 0.3s; }
-    .gauge-scale { position: absolute; width: 200%; height: 200%; bottom: 0; left: -50%; background: conic-gradient(from 270deg at 50% 50%, #ef4444 0deg, #f59e0b 90deg, #10b981 180deg); opacity: 0.6; border-radius: 50%; }
-    .gauge-needle { position: absolute; bottom: 0; width: 3px; height: 35px; background: #f8fafc; transform-origin: bottom center; transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 0 5px rgba(0,0,0,0.8); border-radius: 3px 3px 0 0; }
-    .gauge-needle::after { content:''; position:absolute; bottom:-3px; left:-3px; width:9px; height:9px; background:#94a3b8; border-radius:50%; box-shadow: 0 0 5px black; }
+    /* АНАЛОГОВЫЙ ДАТЧИК (БЕЗОПАСНОСТЬ) */
+    .analog-gauge { width: 70px; height: 35px; background: #020617; border-radius: 70px 70px 0 0; border: 3px solid #334155; border-bottom: none; position: relative; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.9); display: flex; justify-content: center; }
+    .gauge-scale { position: absolute; width: 200%; height: 200%; bottom: 0; left: -50%; background: conic-gradient(from 270deg at 50% 50%, #ef4444 0deg, #f59e0b 90deg, #10b981 180deg); opacity: 0.8; border-radius: 50%; filter: blur(2px); }
+    .gauge-needle { position: absolute; bottom: 0; width: 2px; height: 32px; background: #fff; transform-origin: bottom center; transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 0 5px rgba(0,0,0,1); border-radius: 2px; }
+    .gauge-needle::after { content:''; position:absolute; bottom:-4px; left:-3px; width:8px; height:8px; background:#94a3b8; border-radius:50%; border: 2px solid #0f172a; }
 
-    .lcd-screen { background: #022c15; border: 3px solid #064e3b; border-radius: 8px; box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 2px 5px rgba(0,0,0,0.5); font-family: 'Courier New', monospace; color: #34d399; text-shadow: 0 0 8px #10b981; padding: 8px 12px; font-weight: 900; font-size: 1.2rem; letter-spacing: 2px; display: flex; align-items: center; justify-content: center; min-width: 90px; transition: all 0.3s; }
-    .lcd-screen.danger { color: #ef4444; text-shadow: 0 0 8px #ef4444; background: #2c0202; border-color: #4e0606; animation: flicker 2s infinite; }
+    /* LCD ДИСПЛЕЙ (БЮДЖЕТ) */
+    .lcd-screen { background: #022c15; border: 3px solid #064e3b; border-radius: 8px; box-shadow: inset 0 0 20px rgba(0,0,0,1), 0 0 10px rgba(16,185,129,0.2); font-family: 'Courier New', monospace; color: #34d399; text-shadow: 0 0 10px #10b981; padding: 6px 10px; font-weight: 900; font-size: 1.1rem; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; min-width: 120px; transition: all 0.3s; }
+    .lcd-screen.danger { color: #ef4444; text-shadow: 0 0 15px #ef4444; background: #2c0202; border-color: #7f1d1d; box-shadow: inset 0 0 20px rgba(0,0,0,1), 0 0 15px rgba(239,68,68,0.4); animation: flicker 1.5s infinite; }
 
-    /* КЛАССЫ ПРЕДСКАЗАНИЙ */
-    .gauge-predict-danger { animation: predictPulse 0.5s infinite, shake 0.2s infinite; border-color: #ef4444 !important; box-shadow: 0 0 20px rgba(239, 68, 68, 0.6) !important; }
-    .lcd-predict-danger { animation: predictPulse 0.5s infinite, shake 0.2s infinite; border-color: #ef4444 !important; color: #ef4444 !important; text-shadow: 0 0 15px #ef4444 !important; background: #2c0202 !important; }
+    /* ШКАЛА ЛОЯЛЬНОСТИ */
+    .loyalty-bar-container { width: 80px; height: 16px; background: #020617; border-radius: 10px; border: 2px solid #334155; position: relative; overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.8); }
+    .loyalty-bar-fill { height: 100%; border-radius: 8px; transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.5s; box-shadow: 0 0 10px inset rgba(255,255,255,0.3); }
+
+    /* ПРЕДСКАЗАНИЯ (Анимации при натяжении карты) */
+    .gauge-predict-danger { animation: predictPulse 0.5s infinite, shake 0.2s infinite; border-color: #ef4444 !important; box-shadow: 0 0 25px rgba(239, 68, 68, 0.8) !important; }
+    .lcd-predict-danger { animation: predictPulse 0.5s infinite, shake 0.2s infinite; border-color: #ef4444 !important; color: #ef4444 !important; text-shadow: 0 0 20px #ef4444 !important; background: #2c0202 !important; }
     .avatar-wrapper { display: inline-block; transition: transform 0.2s; }
-    .avatar-predict { transform: scale(1.3) rotate(5deg); filter: drop-shadow(0 10px 10px rgba(0,0,0,0.5)); }
+    .avatar-predict { transform: scale(1.3) rotate(5deg); filter: drop-shadow(0 10px 15px rgba(0,0,0,0.6)); transition: all 0.2s; }
 
     /* ФИЗИЧЕСКИЙ СМАРТФОН */
-    .physical-phone { position: fixed; right: -20px; top: 20vh; width: 80px; height: 160px; background: #020617; border: 4px solid #334155; border-radius: 20px 0 0 20px; box-shadow: -15px 15px 30px rgba(0,0,0,0.8), inset -2px 0 10px rgba(255,255,255,0.1); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 50; display: flex; align-items: center; justify-content: flex-start; padding-left: 8px; cursor: pointer; }
-    .physical-phone:hover { transform: translateX(-20px); }
-    .physical-phone.ringing { animation: phoneRing 0.2s infinite; border-color: #e11d48; box-shadow: -15px 15px 30px rgba(225,29,72,0.4), inset -2px 0 10px rgba(225,29,72,0.3); }
-    .phone-screen-mini { width: 50px; height: 130px; background: #0f172a; border-radius: 10px; border: 1px solid #1e293b; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;}
-    .phone-screen-mini::before { content:''; position:absolute; top:5px; width:20px; height:4px; background:#1e293b; border-radius:2px; }
-    
-    .card-stack { position: relative; width: 100%; max-width: 340px; aspect-ratio: 3/4.2; margin: 0 auto; perspective: 1000px; z-index: 10; }
-    .swipe-card { position: absolute; inset: 0; background: #ffffff; border-radius: 32px; border: 4px solid #e2e8f0; display: flex; flex-direction: column; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6); transform-style: preserve-3d; will-change: transform; }
-    .glare { position: absolute; inset: 0; border-radius: 28px; pointer-events: none; z-index: 5; mix-blend-mode: overlay; transition: opacity 0.2s; }
-    .next-card { position: absolute; inset: 0; background: #f8fafc; border-radius: 32px; border: 4px solid #cbd5e1; transform: scale(0.92) translateY(20px); opacity: 0.8; z-index: -1; }
-    .choice-indicator { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); padding: 8px 16px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0; border: 4px solid; z-index: 10; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: opacity 0.2s; white-space: nowrap; }
-    .choice-left { color: #e11d48; border-color: #e11d48; } .choice-right { color: #10b981; border-color: #10b981; }
+    .physical-phone { position: fixed; right: -15px; top: 15vh; width: 70px; height: 140px; background: #020617; border: 4px solid #475569; border-radius: 20px 0 0 20px; box-shadow: -15px 15px 30px rgba(0,0,0,0.9), inset -2px 0 10px rgba(255,255,255,0.15); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 50; display: flex; align-items: center; justify-content: flex-start; padding-left: 6px; cursor: pointer; }
+    .physical-phone:hover { transform: translateX(-15px); }
+    .physical-phone.ringing { border-color: #e11d48; box-shadow: -15px 15px 30px rgba(225,29,72,0.4), inset -2px 0 10px rgba(225,29,72,0.3); animation: phoneRing 0.2s infinite; }
+    .phone-screen-mini { width: 45px; height: 110px; background: #0f172a; border-radius: 8px; border: 1px solid #1e293b; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .phone-screen-mini::before { content:''; position:absolute; top:4px; width:15px; height:3px; background:#334155; border-radius:2px; }
+    .phone-badge-diegetic { position: absolute; top: 10px; right: 5px; background: #e11d48; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 15px #e11d48; border: 2px solid #0f172a; animation: predictPulse 1s infinite;}
 
-    .stamp { position: absolute; top: 15%; left: 50%; margin-left: -180px; font-size: 5.5rem; font-weight: 900; color: #e11d48; border: 10px solid #e11d48; padding: 15px 40px; border-radius: 20px; transform: rotate(-15deg); pointer-events: none; z-index: 100; text-shadow: 0 0 15px rgba(225,29,72,0.8); box-shadow: 0 0 30px rgba(225,29,72,0.8), inset 0 0 30px rgba(225,29,72,0.8); animation: stamp-smash 0.5s cubic-bezier(0.1, 2, 0.5, 1) forwards; animation-delay: 1.5s; opacity: 0; }
+    /* КАРТОЧКИ И ФИЗИКА (JS управляет transform, CSS не мешает) */
+    .card-stack { position: relative; width: 100%; max-width: 340px; aspect-ratio: 3/4.2; margin: 0 auto; perspective: 1000px; z-index: 10; transform-style: preserve-3d; }
+    .swipe-card { position: absolute; inset: 0; background: #ffffff; border-radius: 32px; border: 2px solid rgba(255,255,255,0.5); display: flex; flex-direction: column; box-shadow: 0 30px 60px -10px rgba(0, 0, 0, 0.7); transform-style: preserve-3d; will-change: transform; }
+    .glare { position: absolute; inset: 0; border-radius: 30px; pointer-events: none; z-index: 5; mix-blend-mode: overlay; transition: opacity 0.2s; }
+    .next-card { position: absolute; inset: 0; background: #f1f5f9; border-radius: 32px; border: 2px solid #cbd5e1; transform: scale(0.92) translateY(20px); opacity: 0.8; z-index: -1; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+
+    .choice-indicator { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 16px; font-weight: 900; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0; border: 4px solid; z-index: 10; background: rgba(255,255,255,0.98); backdrop-filter: blur(10px); box-shadow: 0 15px 35px rgba(0,0,0,0.3); transition: opacity 0.2s; white-space: nowrap; }
+    .choice-left { color: #e11d48; border-color: #e11d48; } 
+    .choice-right { color: #10b981; border-color: #10b981; }
+
+    /* ПЕЧАТИ */
+    .stamp { position: absolute; top: 15%; left: 50%; margin-left: -180px; font-size: 5.5rem; font-weight: 900; color: #e11d48; border: 10px solid #e11d48; padding: 15px 40px; border-radius: 20px; transform: rotate(-15deg); pointer-events: none; z-index: 100; text-shadow: 0 0 15px rgba(225,29,72,0.8); box-shadow: 0 0 30px rgba(225,29,72,0.8), inset 0 0 30px rgba(225,29,72,0.8); animation: stamp-smash 0.5s cubic-bezier(0.1, 2, 0.5, 1) forwards; opacity: 0; }
+    .stamp.stamp-victory { color: #10b981; border-color: #10b981; text-shadow: 0 0 15px rgba(16,185,129,0.8); box-shadow: 0 0 30px rgba(16,185,129,0.8), inset 0 0 30px rgba(16,185,129,0.8); }
     @keyframes stamp-smash { 0% { transform: scale(5) rotate(-20deg); opacity: 0; } 50% { transform: scale(1) rotate(-15deg); opacity: 1; } 100% { transform: scale(1) rotate(-15deg); opacity: 1; } }
 
     .particle { position: absolute; pointer-events: none; border-radius: 50%; z-index: 100; animation: fade-out 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
     @keyframes fade-out { 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0); } }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 
+    /* ШЕРИНГ (Безопасный рендеринг html2canvas) */
     .share-badge { position: absolute; top: -9999px; left: -9999px; width: 600px; height: 900px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; box-sizing: border-box; z-index: -10; opacity: 0; pointer-events: none;}
     .badge-logo { font-size: 6rem; margin-bottom: 20px; text-shadow: 0 10px 10px rgba(0,0,0,0.5);} 
     .badge-title { font-size: 3.5rem; font-weight: 900; margin: 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px;} 
-    .badge-sub { font-size: 1.8rem; color: #94a3b8; margin-bottom: 40px; font-weight: bold;} 
+    .badge-sub { font-size: 1.8rem; color: #94a3b8; margin-bottom: 30px; font-weight: bold;} 
     .badge-days { font-size: 8rem; font-weight: 900; margin: 0; line-height: 1; color: #f8fafc; text-shadow: 0 10px 30px rgba(0,0,0,0.5); } 
-    .badge-days-label { font-size: 2.2rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 40px; font-weight: 900;} 
-    .badge-rank { font-size: 2.8rem; font-weight: 700; color: #fbbf24; background: rgba(255,255,255,0.1); padding: 20px 50px; border-radius: 30px; border: 2px solid rgba(251, 191, 36, 0.5); text-align: center; line-height: 1.2;}
+    .badge-days-label { font-size: 2.2rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 30px; font-weight: 900;} 
+    .badge-rank { font-size: 2.8rem; font-weight: 700; color: #fbbf24; background: rgba(255,255,255,0.1); padding: 20px 50px; border-radius: 30px; border: 2px solid rgba(251, 191, 36, 0.5); text-align: center; line-height: 1.2; margin-bottom: 30px;}
+    .radar-box { width: 100%; display: flex; justify-content: center; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 20px; margin-bottom: 10px;}
+    .badge-watermark { margin-top: 20px; font-size: 1.2rem; color: rgba(255,255,255,0.3); letter-spacing: 2px; }
+
+    .custom-scroll::-webkit-scrollbar { width: 6px; } 
+    .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; } 
+    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
   </style>
 </head>
 <body>
@@ -116,180 +146,82 @@
 <div id="game-root"></div>
 
 <script type="text/babel">
+
+// Инициализация React
   const { useState, useEffect, useRef } = React;
   const { createRoot } = ReactDOM;
 
   /* =========================================================
-     МОДУЛЬ 1: ВСЕ 30 СЦЕНАРИЕВ + ДОСТИЖЕНИЯ
+     МОДУЛЬ 1: БАЗА ДАННЫХ (Сценарии, Ачивки, Экономика)
   ========================================================= */
-  const ALL_SCENARIOS = [
-    { isUrgent: false, character: "Дежурный специалист", role: "РЭО", avatar: "🪜", text: "У нас перегорела люстра в холле лобби. Высота 5 метров. Леса собирать долго, давай ребята две стремянки поставят и доску между ними кинут?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "РАЗРЕШИТЬ", onLeft: { safety: 10, budget: -15, loyalty: -10, msg: "Люстра не горит. Гости жалуются на темноту." }, onRight: { safety: -40, budget: 10, loyalty: 5, msg: "Доска треснула. Рабочий упал с 5 метров. Уголовное дело." } },
-    { isUrgent: false, character: "Шеф-повар", role: "Служба питания", avatar: "🍳", text: "Фритюрница искрит на контактах. Электрик будет только завтра. Я замотал изолентой, банкет надо выдавать. Работаем?", leftChoice: "ВЫВЕСТИ ИЗ СТРОЯ", rightChoice: "ГОТОВЬ АККУРАТНО", onLeft: { safety: 15, budget: -25, loyalty: -15, msg: "Меню банкета сорвано. Отель платит неустойку." }, onRight: { safety: -45, budget: 20, loyalty: 0, msg: "Короткое замыкание. Пожар в горячем цеху, эвакуация." } },
-    { isUrgent: false, character: "Горничная", role: "ГХ", avatar: "🩸", text: "Я убирала номер и укололась о шприц в мусорке... Пожалуйста, давайте не будем оформлять акт о несчастном случае, меня же уволят!", leftChoice: "ОФОРМИТЬ НС", rightChoice: "СКРЫТЬ ТРАВМУ", onLeft: { safety: 10, budget: -10, loyalty: -20, msg: "Оформлен НС. Комиссия, проверки, бумажная волокита." }, onRight: { safety: -50, budget: 10, loyalty: 15, msg: "Через месяц у нее нашли гепатит С. Скрытие НС всплыло. Вы под следствием." } },
-    { isUrgent: true, character: "Сигнализация", role: "Диспетчерская", avatar: "🚨", text: "Сработала пожарная сигнализация в SPA-комплексе! Там сейчас 50 гостей в купальниках. Может это ложное от пара сауны? Ждем разведку или эвакуируем?!", leftChoice: "ЭВАКУАЦИЯ!", rightChoice: "ЖДЕМ 5 МИНУТ", onLeft: { safety: 15, budget: -20, loyalty: -25, msg: "Гости мерзли на улице в халатах. Тревога была ложной." }, onRight: { safety: -60, budget: 0, loyalty: 0, msg: "Это было реальное возгорание проводки. Люди отравились угаром." } },
-    { isUrgent: false, character: "Служба персонала", role: "Кадры", avatar: "📋", text: "Завтра заезд детского лагеря, а у 10 новых поваров нет справок от психиатра. Поликлиника выдаст их только в понедельник. Выпускаем на смену?", leftChoice: "ОТСТРАНИТЬ", rightChoice: "ПУСТЬ РАБОТАЮТ", onLeft: { safety: 15, budget: -30, loyalty: -15, msg: "Нехватка персонала, дети ждали еду по 2 часа." }, onRight: { safety: -35, budget: 15, loyalty: 10, msg: "Проверка Роспотребнадзора нашла нарушение. Штраф 500к на юр.лицо." } },
-    { isUrgent: false, character: "Главный Инженер", role: "Подрядчики", avatar: "👷", text: "Приехали подрядчики чистить вентиляцию. Нарядов-допусков на работу в ОЗП (замкнутых пространствах) у них нет, газоанализатора тоже. Пускаем?", leftChoice: "ПРОГНАТЬ ИХ", rightChoice: "ПУСТЬ ЛЕЗУТ", onLeft: { safety: 10, budget: -20, loyalty: -10, msg: "Вентиляция грязная, бюджет горит." }, onRight: { safety: -50, budget: 15, loyalty: 5, msg: "Рабочий задохнулся в шахте. Вы не проверили их допуски." } },
-    { isUrgent: false, character: "Бухгалтерия", role: "Финансы", avatar: "💸", text: "Пришло время закупать зимнюю спецодежду для дворников. Есть сертифицированная за 10 тыс. руб, и китайская на рынке без документов за 3 тыс. Какую берем?", leftChoice: "СЕРТИФИКАТ", rightChoice: "С РЫНКА", onLeft: { safety: 15, budget: -25, loyalty: 10, msg: "Рабочие в тепле, но бюджет исчерпан." }, onRight: { safety: -30, budget: 25, loyalty: -20, msg: "Дворники обморозили руки. ГИТ нашла несертифицированные СИЗ." } },
-    { isUrgent: false, character: "Официант", role: "Ресторан", avatar: "🩹", text: "Я порезал палец слайсером. Кровь течет сильно. Кровь залила доску. В аптечке только бинт, перекиси нет. Продолжать работу?", leftChoice: "В МЕДПУНКТ", rightChoice: "ЗАМОТАЙ И РАБОТАЙ", onLeft: { safety: 10, budget: -10, loyalty: -5, msg: "Официант спасен, но смена осталась без рук." }, onRight: { safety: -30, budget: 10, loyalty: -15, msg: "Кровь попала в блюдо гостя. Скандал космического масштаба." } },
-    { isUrgent: true, character: "Админ. контроль", role: "КПП", avatar: "🏃‍♂️", text: "В ресторане гость подавился стейком! Он задыхается, синеет! Я не умею делать прием Геймлиха. Вызывать скорую или вы сами прибежите?!", leftChoice: "ВЫЗЫВАЙ СКОРУЮ", rightChoice: "БЕГУ САМ (СЛР)", onLeft: { safety: -50, budget: 0, loyalty: 0, msg: "Скорая ехала 20 минут. Гость задохнулся. Вы не организовали первую помощь." }, onRight: { safety: 20, budget: 0, loyalty: 15, msg: "Вы успели спасти жизнь приемом Геймлиха. Вы герой." } },
-    { isUrgent: false, character: "Директор", role: "Администрация", avatar: "👔", text: "СОУТ (спецоценка) обойдется в полмиллиона. Давай заплатим конторе 50 тысяч, они без выезда нарисуют нам 2-й класс опасности для всех?", leftChoice: "ЭТО УГОЛОВКА", rightChoice: "ХОРОШАЯ ИДЕЯ", onLeft: { safety: 15, budget: -30, loyalty: -20, msg: "Директор взбешен тратами, но по закону вы прикрыты." }, onRight: { safety: -40, budget: 30, loyalty: 15, msg: "При тяжелой травме подлог вскрылся. Директор перевел вину на вас." } },
-    { isUrgent: false, character: "Электрик", role: "ЭТО", avatar: "🔌", text: "В подвале вода по щиколотку после ливня, а там электрощитовая. Надо зайти рубильник отключить. Диэлектрических бот нет. Пойду в резиновых сапогах?", leftChoice: "СТОЙ!", rightChoice: "ИДИ АККУРАТНО", onLeft: { safety: 15, budget: -15, loyalty: -5, msg: "Ждем МЧС. Подвал затопило еще сильнее." }, onRight: { safety: -60, budget: 10, loyalty: 5, msg: "Обычная резина не спасла от шагового напряжения. Летальный исход." } },
-    { isUrgent: false, character: "Инспектор ГИТ", role: "Проверка", avatar: "👮", text: "У вас 30 сотрудников не прошли проверку знаний по охране труда (ПП №2464). Штраф 130 000 руб за каждого. Или договоримся?", leftChoice: "ПИШИТЕ ШТРАФ", rightChoice: "ДАВАЙТЕ ДОГОВОРИМСЯ", onLeft: { safety: 0, budget: -50, loyalty: -10, msg: "Огромный штраф. Отель на грани банкротства." }, onRight: { safety: -30, budget: -10, loyalty: 0, msg: "Сэкономили. Но сотрудники так и остались без знаний правил безопасности." } },
-    { isUrgent: false, character: "Горничная", role: "ГХ", avatar: "🧪", text: "Канистры с химией в кладовке тяжелые. Девочки перелили доместос и кислоту в обычные бутылки из-под минералки без этикеток, так удобнее носить.", leftChoice: "ИЗЪЯТЬ БУТЫЛКИ", rightChoice: "ПУСТЬ НОСЯТ", onLeft: { safety: 15, budget: 0, loyalty: -15, msg: "Горничные жалуются на сорванные спины от тяжелых канистр." }, onRight: { safety: -40, budget: 0, loyalty: 10, msg: "Стажер случайно выпил глоток химии из бутылки из-под Sprite." } },
-    { isUrgent: true, character: "Диспетчер", role: "Лифты", avatar: "🛗", text: "В лифте застряли 4 гостя! Там жарко, у одного паническая атака. Лифтер будет ехать час. Дежурный предлагает вскрыть двери ломиком прямо сейчас!", leftChoice: "ЖДЕМ ЛИФТЕРА", rightChoice: "ВСКРЫВАЙТЕ", onLeft: { safety: 15, budget: -10, loyalty: -25, msg: "Гости просидели час в духоте. Жесткий скандал, но все живы." }, onRight: { safety: -50, budget: 0, loyalty: 10, msg: "При вскрытии ломом лифт дернулся. Гость упал в шахту." } },
-    { isUrgent: false, character: "Снабженец", role: "Закупки", avatar: "📦", text: "Мы купили новые огнетушители, но они без паспортов и чеки не опломбированы. Зато скидка 40%. Расставляем по этажам?", leftChoice: "ВЕРНУТЬ ОБРАТНО", rightChoice: "РАССТАВЛЯЕМ", onLeft: { safety: 15, budget: -20, loyalty: -5, msg: "Остались без огнетушителей на неделю, ждем новую партию." }, onRight: { safety: -35, budget: 20, loyalty: 0, msg: "При реальном возгорании огнетушители не сработали. Пожар." } },
-    { isUrgent: false, character: "Системный админ", role: "IT", avatar: "🖥️", text: "В серверной сдох кондиционер, температура +35. Я открыл дверь в коридор и поставил бытовой вентилятор. Пусть так работает до завтра?", leftChoice: "ЗАКРЫТЬ ДВЕРЬ", rightChoice: "ПУСТЬ ОСТЫВАЕТ", onLeft: { safety: 10, budget: -15, loyalty: -10, msg: "Сервер перегрелся и отключился. Но правила пож. безопасности соблюдены." }, onRight: { safety: -30, budget: 0, loyalty: 10, msg: "Нарушена целостность противопожарной преграды. При проверке МЧС выписали штраф." } },
-    { isUrgent: false, character: "Эколог", role: "Подрядчик", avatar: "♻️", text: "Скопилось 50 старых люминесцентных ламп. Официальная утилизация стоит дорого. Может, просто выкинем их в общий контейнер ночью?", leftChoice: "ОФОРМИТЬ ВЫВОЗ", rightChoice: "В ОБЩИЙ МУСОР", onLeft: { safety: 10, budget: -20, loyalty: 5, msg: "Лампы утилизированы по закону. Природа и прокурор говорят спасибо." }, onRight: { safety: -40, budget: 15, loyalty: 0, msg: "Лампы разбились в мусоровозе. Экологическая прокуратура возбудила дело." } },
-    { isUrgent: false, character: "Грузчик", role: "Склад", avatar: "📦", text: "Пришла большая партия белья. На складе места нет, мы коробками заставили пожарный выход. К утру разберем, честно!", leftChoice: "РАЗОБРАТЬ СЕЙЧАС", rightChoice: "ДО УТРА ПОТЕРПИТ", onLeft: { safety: 15, budget: -10, loyalty: -20, msg: "Грузчики всю ночь таскали коробки и требуют сверхурочные." }, onRight: { safety: -45, budget: 0, loyalty: 10, msg: "Ночью сработала тревога. Люди не смогли выйти из-за коробок. Трагедия." } },
-    { isUrgent: false, character: "Рабочий", role: "РЭО", avatar: "🧗", text: "Мне выдали страховочную привязь, но она неудобная и натирает. Буду работать на крыше без нее, я 20 лет так делаю, не упаду.", leftChoice: "НАДЕТЬ ПРИВЯЗЬ!", rightChoice: "РАБОТАЙ ТАК", onLeft: { safety: 15, budget: 0, loyalty: -15, msg: "Рабочий ругался, но надел привязь. Жизнь спасена." }, onRight: { safety: -50, budget: 0, loyalty: 10, msg: "Оступился на краю крыши. Падение с высоты. Вы под следствием." } },
-    { isUrgent: false, character: "Шеф-повар", role: "Ресторан", avatar: "🥩", text: "Мясник снял защитный экран с промышленной мясорубки, говорит, так быстрее фарш крутить. Скорость отдачи блюд выросла!", leftChoice: "ВЕРНУТЬ ЭКРАН", rightChoice: "ОСТАВИТЬ ТАК", onLeft: { safety: 15, budget: -10, loyalty: -15, msg: "Скорость работы упала, но пальцы мясника остались при нем." }, onRight: { safety: -60, budget: 15, loyalty: 5, msg: "Руку затянуло в шнек. Кошмарная травма, отель платит миллионы." } },
-    { isUrgent: true, character: "Охранник", role: "Парковка", avatar: "🚗", text: "На подземной парковке машина въехала в столб, водитель без сознания, из-под капота дым! Бежать тушить огнетушителем или эвакуировать людей?", leftChoice: "ЭВАКУАЦИЯ", rightChoice: "ТУШИТЬ МАШИНУ", onLeft: { safety: 20, budget: -30, loyalty: 10, msg: "Машина сгорела, но все люди были вовремя выведены. Вы спасли жизни." }, onRight: { safety: -40, budget: -20, loyalty: 0, msg: "Огнетушитель не справился, машина взорвалась. Охранник в реанимации." } },
-    { isUrgent: false, character: "Бармен", role: "Лобби-бар", avatar: "🍾", text: "Я случайно разбил бутылку сиропа. Полы липкие и в стекле. Гостей много. Убрать сейчас и тормознуть бар или в конце смены?", leftChoice: "УБРАТЬ СЕЙЧАС", rightChoice: "В КОНЦЕ СМЕНЫ", onLeft: { safety: 10, budget: -10, loyalty: -5, msg: "Бар стоял 15 минут. Выручка чуть упала, но никто не порезался." }, onRight: { safety: -30, budget: 10, loyalty: 5, msg: "Ребенок гостя поскользнулся на сиропе и распорол руку стеклом." } },
-    { isUrgent: false, character: "Офис-менеджер", role: "Офис", avatar: "🪑", text: "Мы купили новые эргономичные кресла для бухгалтерии за счет экономии канцелярии! Одобряете установку?", leftChoice: "ОДОБРЯЮ", rightChoice: "ОТЛИЧНАЯ ИДЕЯ", onLeft: { safety: 10, budget: 5, loyalty: 15, msg: "Спины бухгалтеров спасены! Все очень довольны." }, onRight: { safety: 10, budget: 5, loyalty: 15, msg: "Спины бухгалтеров спасены! Все очень довольны." } },
-    { isUrgent: false, character: "Генеральный", role: "Руководство", avatar: "🏆", text: "Год прошли без единого несчастного случая! Я выделил премию отделу охраны труда и персоналу.", leftChoice: "ВЗЯТЬ ПРЕМИЮ", rightChoice: "РАЗДАТЬ ВСЕМ", onLeft: { safety: 5, budget: 15, loyalty: 10, msg: "Вы крутой специалист, заслуженная награда!" }, onRight: { safety: 5, budget: 10, loyalty: 20, msg: "Коллектив обожает вас. Безопасность на высоте." } },
-    { isUrgent: false, character: "Уборщица", role: "ГХ", avatar: "🧹", text: "В холле протерся коврик, края задираются. Посетители спотыкаются, но не падают. Заказать новый за 15к или приклеить края двусторонним скотчем?", leftChoice: "КЛЕИТЬ СКОТЧЕМ", rightChoice: "ЗАКАЗАТЬ НОВЫЙ", onLeft: { safety: -5, budget: 5, loyalty: -5, msg: "Коврик приклеен. Выглядит неопрятно, но пока держится." }, onRight: { safety: 5, budget: -5, loyalty: 5, msg: "Постелили новый коврик. Безопасно и эстетично." } },
-    { isUrgent: false, character: "Админ. контроль", role: "Патруль", avatar: "🔦", text: "Перегорела лампочка на черной лестнице. Там редко ходят. Отправить техника сейчас или подождать до завтрашнего утреннего обхода?", leftChoice: "ЖДАТЬ ДО ЗАВТРА", rightChoice: "МЕНЯТЬ СЕЙЧАС", onLeft: { safety: -5, budget: 0, loyalty: 0, msg: "Ночью повар споткнулся в темноте, но не упал. Завтра поменяют." }, onRight: { safety: 5, budget: -5, loyalty: 0, msg: "Техник поворчал, но заменил лампу. Лестница освещена." } },
-    { isUrgent: false, character: "Офис-менеджер", role: "Кадры", avatar: "🗂️", text: "У офисных сотрудников срок планового инструктажа. Собрать всех в зале на час (оторвать от работы) или скинуть презентацию на почту для галочки?", leftChoice: "СОБРАТЬ В ЗАЛЕ", rightChoice: "КИНУТЬ НА ПОЧТУ", onLeft: { safety: 5, budget: -5, loyalty: -5, msg: "Бухгалтерия недовольна потерей времени, но инструктаж пройден честно." }, onRight: { safety: -5, budget: 5, loyalty: 5, msg: "Все рады, что не пришлось идти. Знаний по ТБ не прибавилось." } },
-    { isUrgent: false, character: "Медсестра", role: "Медцентр", avatar: "🩹", text: "У нас в трех аптечках на этажах бинты истекают через неделю. Закупить новые сегодня или дотянем до следующего месяца?", leftChoice: "ДОТЯНЕМ", rightChoice: "ЗАКУПИТЬ СЕЙЧАС", onLeft: { safety: -5, budget: 5, loyalty: 0, msg: "Сэкономили копейки. Надеемся, никто серьезно не порежется." }, onRight: { safety: 5, budget: -5, loyalty: 0, msg: "Аптечки обновлены. Бюджет слегка похудел." } },
-    { isUrgent: false, character: "Продавец", role: "Сувениры", avatar: "🔌", text: "В киоске холодно, я принесла из дома старый обогреватель с открытой спиралью. Греет супер! Можно оставлю?", leftChoice: "РАЗРЕШИТЬ", rightChoice: "ЗАПРЕТИТЬ", onLeft: { safety: -40, budget: 0, loyalty: 10, msg: "Спираль упала на коробки с сувенирами. Пожар на первом этаже." }, onRight: { safety: 10, budget: -15, loyalty: -10, msg: "Пришлось купить сертифицированный масляный радиатор за счет отеля." } },
-    { isUrgent: false, character: "Уборщица", role: "ГХ", avatar: "🪣", text: "Закончились желтые предупреждающие таблички 'Осторожно, мокрый пол'. Я просто швабру поперек коридора положу, чтобы не ходили?", leftChoice: "ПОЛОЖИТЬ ШВАБРУ", rightChoice: "КУПИТЬ ТАБЛИЧКИ", onLeft: { safety: -20, budget: 5, loyalty: 0, msg: "Гость споткнулся о вашу швабру и сломал нос. Гениальное решение." }, onRight: { safety: 10, budget: -5, loyalty: 5, msg: "Заказали таблички. Все по правилам." } }
+  
+  // ОСНОВНЫЕ СЮЖЕТНЫЕ КАМПАНИИ (30 Уникальных сценариев)
+  const CAMPAIGNS = {
+    main: [
+      { id: 'm1', isUrgent: false, character: "Дежурный техник", role: "Главный корпус", avatar: "🪜", text: "Перегорела люстра в лобби. Высота 5 метров. Леса собирать долго, давай ребята две стремянки поставят и доску между ними кинут?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "РАЗРЕШИТЬ", onLeft: { safety: 15, budget: -10, loyalty: -10, msg: "Гости жалуются на темноту. Отель теряет лицо." }, onRight: { safety: -45, budget: 10, loyalty: 5, msg: "Доска треснула. Рабочий упал с 5 метров. Уголовное дело." }, rule: "Правила работы на высоте (Приказ №782н). Запрещено использовать случайные подмости." },
+      { id: 'm2', isUrgent: false, character: "Офис-менеджер", role: "Кадры", avatar: "🗂️", text: "Срок планового инструктажа. Собрать всех в зале на час (оторвать от работы) или скинуть презентацию на почту для галочки?", leftChoice: "СОБРАТЬ В ЗАЛЕ", rightChoice: "КИНУТЬ НА ПОЧТУ", onLeft: { safety: 15, budget: -10, loyalty: -15, msg: "Бухгалтерия недовольна потерей времени, но инструктаж пройден честно." }, onRight: { safety: -20, budget: 15, loyalty: 10, msg: "Знаний ноль. При проверке сотрудники не смогли ответить на базовые вопросы." }, rule: "Постановление №2464. Инструктаж должен проводиться лично с устной проверкой знаний." },
+      { id: 'm3', isUrgent: false, character: "Снабженец", role: "Закупки", avatar: "📦", text: "Нашли огнетушители со скидкой 40%, но они без паспортов и чеки не опломбированы. Берем партию?", leftChoice: "ОТКАЗАТЬ", rightChoice: "БЕРЕМ", onLeft: { safety: 15, budget: -20, loyalty: -5, msg: "Бюджет пострадал, ждем официальную поставку." }, onRight: { safety: -40, budget: 25, loyalty: 0, msg: "При замыкании огнетушители оказались пустыми. Выгорел этаж." }, rule: "ППБ. Запрет использования первичных средств пожаротушения без паспортов и пломб." },
+      { id: 'm4', isUrgent: true, character: "Сигнализация", role: "Диспетчерская", avatar: "🚨", text: "Сработала пожарная тревога на 3 этаже! Может это ложное от пара из чайника? Ждем разведку 5 минут или запускаем эвакуацию всего здания?!", leftChoice: "ЭВАКУАЦИЯ!", rightChoice: "ЖДЕМ РАЗВЕДКУ", onLeft: { safety: 20, budget: -20, loyalty: -25, msg: "Гости в пижамах на улице. Тревога ложная, будут жалобы." }, onRight: { safety: -60, budget: 0, loyalty: 0, msg: "Реальный пожар в проводке. Из-за потери времени люди отравились угаром." }, rule: "Инструкция по ПБ. Приоритет — немедленная эвакуация людей до выяснения причин." },
+      { id: 'm5', isUrgent: false, character: "Электрик", role: "ЭТО", avatar: "🔌", text: "В подвале вода по щиколотку, а там электрощитовая. Надо отключить рубильник. Диэлектрических бот нет. Пойду в резиновых сапогах?", leftChoice: "СТОЙ!", rightChoice: "ИДИ АККУРАТНО", onLeft: { safety: 15, budget: -15, loyalty: -5, msg: "Ждем МЧС. Подвал затопило еще сильнее." }, onRight: { safety: -55, budget: 10, loyalty: 5, msg: "Обычная резина не спасла от шагового напряжения. Летальный исход." }, rule: "ПТБ при эксплуатации электроустановок. Работа в сырых помещениях без спец. СИЗ строжайше запрещена." },
+      { id: 'm6', isUrgent: false, character: "Директор", role: "Руководство", avatar: "👔", text: "СОУТ (спецоценка) обойдется в 500к. Знакомая контора предлагает за 50к 'нарисовать' нам 2-й класс опасности без выезда на места. Соглашаемся?", leftChoice: "ЭТО ПОДСУДНО", rightChoice: "ХОРОШАЯ ИДЕЯ", onLeft: { safety: 10, budget: -30, loyalty: -20, msg: "Директор в ярости от трат, но юридически мы чисты." }, onRight: { safety: -50, budget: 40, loyalty: 10, msg: "При расследовании тяжелой травмы подлог вскрылся прокуратурой." }, rule: "ФЗ №426-ФЗ. Фиктивное проведение СОУТ влечет уголовную ответственность." },
+      { id: 'm7', isUrgent: false, character: "Уборщица", role: "ГХ", avatar: "🧹", text: "В холле протерся коврик, края задираются. Посетители спотыкаются. Заказать новый за 15к или приклеить края скотчем?", leftChoice: "КЛЕИТЬ СКОТЧЕМ", rightChoice: "КУПИТЬ НОВЫЙ", onLeft: { safety: -20, budget: 15, loyalty: -5, msg: "Скотч отклеился, пожилой гость упал и сломал шейку бедра." }, onRight: { safety: 15, budget: -15, loyalty: 10, msg: "Постелили новый безопасный коврик." }, rule: "Требования к путям эвакуации. Покрытия полов должны быть надежно закреплены." },
+      { id: 'm8', isUrgent: true, character: "Диспетчер", role: "Лифты", avatar: "🛗", text: "В лифте застряли 4 гостя! Там духота, у женщины паника. Лифтер будет ехать час. Техник предлагает вскрыть двери ломиком прямо сейчас!", leftChoice: "ЖДЕМ ЛИФТЕРА", rightChoice: "ВСКРЫВАЙТЕ", onLeft: { safety: 20, budget: -10, loyalty: -25, msg: "Гости просидели час. Отель выплатил компенсации за моральный ущерб." }, onRight: { safety: -60, budget: 0, loyalty: 10, msg: "При неквалифицированном вскрытии лифт дернулся. Человек упал в шахту." }, rule: "Правила устройства и безопасной эксплуатации лифтов. Вскрытие кабины только аттестованным персоналом." },
+      { id: 'm9', isUrgent: false, character: "Инспектор ГИТ", role: "Проверка", avatar: "👮", text: "У вас 30 сотрудников не прошли проверку знаний по ТБ. Штраф 130 000 руб за каждого! Или... 'договоримся' на месте?", leftChoice: "ПИШИТЕ ШТРАФ", rightChoice: "ДАВАЙТЕ ДОГОВОРИМСЯ", setFlag: 'git_bribe', onLeft: { safety: 10, budget: -50, loyalty: -10, msg: "Огромный официальный штраф. Отель на грани банкротства." }, onRight: { safety: -30, budget: -10, loyalty: 0, msg: "Вы дали взятку. Инспектор ушел, но вы на крючке." }, rule: "Антикоррупционная политика и нарушение регламента обучения (ПП №2464)." },
+      { id: 'm10', isUrgent: false, character: "Бухгалтерия", role: "Финансы", avatar: "💸", text: "Закупаем зимнюю спецодежду для дворников. Есть сертифицированная за 10к, и с китайского рынка без доков за 3к. Какую берем?", leftChoice: "СЕРТИФИКАТ", rightChoice: "С РЫНКА", onLeft: { safety: 15, budget: -25, loyalty: 10, msg: "Работники в тепле, бюджет просел." }, onRight: { safety: -40, budget: 30, loyalty: -20, msg: "Дворники получили обморожения. Выявлено использование несертифицированных СИЗ." }, rule: "ТР ТС 019/2011. Использование СИЗ без сертификата соответствия запрещено." }
+    ],
+    park: [
+      { id: 'p1', isUrgent: true, character: "Охранник", role: "Парковка", avatar: "🚗", text: "Авария на подземной парковке! Машина въехала в столб, водитель без сознания, из-под капота валит дым! Тушить огнетушителем или тащить водителя?", leftChoice: "ТЯНУТЬ ВОДИТЕЛЯ", rightChoice: "ТУШИТЬ МАШИНУ", onLeft: { safety: 25, budget: -20, loyalty: 15, msg: "Вытащили водителя за секунду до взрыва авто. Машина сгорела, человек жив." }, onRight: { safety: -45, budget: -10, loyalty: -10, msg: "Огнетушитель не справился, произошел взрыв. Пострадал и водитель, и охранник." }, rule: "ППБ. Главный приоритет — спасение жизни людей до начала тушения имущества." },
+      { id: 'p2', isUrgent: false, character: "Прораб", role: "Стройка парка", avatar: "💣", text: "Экскаваторщик откопал ржавый снаряд времен войны! Директор звонит и орет: 'Закапывайте обратно, у нас сдача объекта горит!'.", leftChoice: "ВЫЗВАТЬ МЧС", rightChoice: "ЗАКОПАТЬ!", onLeft: { safety: 30, budget: -30, loyalty: -15, msg: "Стройка оцеплена МЧС на неделю. Сроки сорваны, штрафы от заказчика." }, onRight: { safety: -80, budget: 20, loyalty: 0, msg: "Снаряд сдетонировал при попытке засыпать его грунтом. Катастрофа." }, rule: "Действия при ЧС. При обнаружении Взрывоопасного Предмета немедленно прекратить работы." },
+      { id: 'p3', isUrgent: false, character: "Главный Инженер", role: "Подрядчики", avatar: "👷", text: "Приехали подрядчики чистить вентиляционные шахты (ОЗП). Нарядов-допусков у них нет, газоанализатора тоже. Пускаем работать?", leftChoice: "ПРОГНАТЬ ИХ", rightChoice: "ПУСТЬ ЛЕЗУТ", onLeft: { safety: 15, budget: -15, loyalty: -10, msg: "Вентиляция осталась грязной, сроки сорваны." }, onRight: { safety: -50, budget: 15, loyalty: 5, msg: "Рабочий подрядчика потерял сознание в шахте от скопления газа." }, rule: "ПОТ при работе в ОЗП (Приказ №902н). Запрещен допуск без газоанализатора и наряда." },
+      { id: 'p4', isUrgent: false, character: "VIP-Гость", role: "Блогер", avatar: "🔥", text: "Популярный блогер снимает в люксе фаер-шоу с огнем! Он заклеил скотчем датчик дыма. Будем выселять со скандалом или пусть снимает?", leftChoice: "ВЫСЕЛИТЬ", rightChoice: "ПУСТЬ СНИМАЕТ", setFlag: 'fire_show', onLeft: { safety: 20, budget: -15, loyalty: -15, msg: "Блогер устроил скандал в соцсетях. Рейтинг отеля упал." }, onRight: { safety: -25, budget: 20, loyalty: 10, msg: "Шоу прошло круто, отель получил рекламу. Но вы нарушили закон..." }, rule: "ППБ. Строжайше запрещено блокировать или отключать системы АПС." },
+      { id: 'p5', isUrgent: true, character: "Админ", role: "КПП", avatar: "🏃‍♂️", text: "В ресторане на веранде гость подавился куском стейка! Задыхается, синеет! Я не умею делать прием Геймлиха. Ждем скорую или рискнете сами?!", leftChoice: "ЖДЕМ СКОРУЮ", rightChoice: "БЕГУ ДЕЛАТЬ СЛР", onLeft: { safety: -50, budget: 0, loyalty: -15, msg: "Скорая ехала 20 минут из-за пробок. Гость задохнулся насмерть." }, onRight: { safety: 25, budget: 0, loyalty: 20, msg: "Вы пробили ему грудину приемом Геймлиха. Кусок вылетел. Вы герой отеля!" }, rule: "Оказание Первой Помощи. При асфиксии счет идет на секунды, вызов скорой не заменяет СЛР." },
+      { id: 'p6', isUrgent: false, character: "Охранник", role: "Патруль", avatar: "🦝", text: "На заднем дворе завелся агрессивный енот, шипит на поваров у мусорки. Ребята хотят залить его перцовым баллоном и прогнать швабрами.", leftChoice: "ВЫЗВАТЬ ОТЛОВ", rightChoice: "ПШИКНУТЬ В НЕГО", onLeft: { safety: 15, budget: -10, loyalty: 5, msg: "Платная спецслужба аккуратно поймала енота и увезла в лес." }, onRight: { safety: -35, budget: 0, loyalty: -15, msg: "Енот оказался бешеным, бросился на повара и покусал его. Карантин." }, rule: "Охрана труда. Запрещено контактировать с дикими животными на территории предприятия." },
+      { id: 'p7', isUrgent: true, character: "IT-Служба", role: "СКУД", avatar: "💻", text: "Глобальный сбой! Электронные замки заблокировали 10 гостей в номерах, а у нас сработала ложная пожарная тревога! Ломать двери кувалдой или ждать сисадмина 40 минут?", leftChoice: "ЛОМАТЬ КУВАЛДОЙ", rightChoice: "ЖДАТЬ АДМИНА", onLeft: { safety: 20, budget: -30, loyalty: 10, msg: "Вы разнесли 10 дорогих дверей, но спасли гостей от жуткой паники." }, onRight: { safety: -45, budget: 10, loyalty: -25, msg: "У пожилого гостя случился сердечный приступ в запертом номере под вой сирены." }, rule: "Требования к СКУД при ПБ. Двери на путях эвакуации должны разблокироваться автоматически." },
+      { id: 'p8', isUrgent: false, character: "Охранник", role: "КПП", avatar: "🎣", text: "Начальник, в Русской Рыбалке 4 открыли Лосиное озеро! Там трофейная щука прет! Можно я на ночной обход не пойду, посижу половлю?", leftChoice: "НА ОБХОД!", rightChoice: "ЛОВИ ЩУКУ", onLeft: { safety: 15, budget: 0, loyalty: -10, msg: "Охранник грустно закрыл ноут, пошел патрулировать и вовремя заметил прорыв трубы." }, onRight: { safety: -30, budget: -20, loyalty: 15, msg: "Щуку он вытащил! Но пока сидел, с территории парка украли медный кабель." }, rule: "Должностная инструкция ЧОП. Сон и отвлечение от поста в рабочее время запрещены." },
+      { id: 'p9', isUrgent: false, character: "Уборщица", role: "Улица", avatar: "❄️", text: "Крыльцо обледенело. Песка и соли нет. Может, я просто кипятком из ведра полью, лед растает?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "ПОЛЕЙ КИПЯТКОМ", onLeft: { safety: 10, budget: -10, loyalty: -5, msg: "Пришлось срочно закупать реагент втридорога." }, onRight: { safety: -35, budget: 5, loyalty: -10, msg: "Кипяток на морозе мгновенно превратился в идеальный каток. Три перелома за утро." }, rule: "ОТ при уборке территории. Использование горячей воды для удаления льда запрещено." },
+      { id: 'p10', isUrgent: false, character: "Ландшафтник", role: "Газон", avatar: "🚜", text: "Газонокосилка сломалась (нет защитного кожуха на ножах). А сегодня свадьба, трава по колено! Буду косить так, аккуратно?", leftChoice: "В РЕМОНТ", rightChoice: "КОСИ АККУРАТНО", onLeft: { safety: 15, budget: -15, loyalty: -10, msg: "Газон страшный, клиенты свадьбы недовольны видом." }, onRight: { safety: -50, budget: 10, loyalty: -15, msg: "Камень отлетел от открытых ножей прямо в окно ресторана, разбив витрину." }, rule: "ПОТ при работе с инструментом. Эксплуатация техники со снятыми защитными кожухами запрещена." }
+    ],
+    med: [
+      { id: 'h1', isUrgent: false, character: "Медсестра", role: "Процедурная", avatar: "💉", text: "Контейнеры для острых биоотходов (Класс Б) переполнены. Ждать закупки долго. Можно я иглы пока в обычную пластиковую бутылку скидывать буду?", leftChoice: "КАТЕГОРИЧЕСКИ НЕТ", rightChoice: "КИДАЙ АККУРАТНО", onLeft: { safety: 20, budget: -15, loyalty: -10, msg: "Пришлось останавливать прием и срочно гнать курьера за спец. тарой." }, onRight: { safety: -60, budget: 5, loyalty: 5, msg: "Уборщица выносила мусор и проколола ногу инфицированной иглой через пластик." }, rule: "СанПиН 2.1.3684-21. Сбор острых отходов Класса Б только в твердую непрокалываемую тару." },
+      { id: 'h2', isUrgent: true, character: "Завхоз", role: "Склад", avatar: "🧪", text: "Разбилась 5-литровая бутыль с дезинфектантом-концентратом. Запах едкий, режет глаза. Просто помыть пол шваброй и открыть окно?", leftChoice: "ВЫЗВАТЬ СПЕЦКЛИНИНГ", rightChoice: "МОЙ САМА БЫСТРО", onLeft: { safety: 25, budget: -25, loyalty: 10, msg: "Помещение изолировали. Специалисты убрали разлив в респираторах." }, onRight: { safety: -55, budget: 10, loyalty: -20, msg: "Завхоз получила химический ожог дыхательных путей и отек легких." }, rule: "Охрана труда с хим. веществами. Ликвидация разлива агрессивных веществ только с применением СИЗОД." },
+      { id: 'h3', isUrgent: false, character: "Горничная", role: "ГХ Медблока", avatar: "🧽", text: "Канистры с профессиональной химией очень тяжелые! Девочки перелили доместос и кислоту в бутылки из-под 'Святого Источника', так удобнее носить.", leftChoice: "ИЗЪЯТЬ БУТЫЛКИ", rightChoice: "ПУСТЬ НОСЯТ", onLeft: { safety: 20, budget: 0, loyalty: -15, msg: "Горничные жалуются профсоюзу на сорванные спины." }, onRight: { safety: -60, budget: 0, loyalty: 10, msg: "Пожилой пациент с плохим зрением выпил глоток кислоты, думая, что это вода." }, rule: "Правила работы с химическими веществами. Строгий запрет переливания в пищевую тару без маркировки." },
+      { id: 'h4', isUrgent: false, character: "Терапевт", role: "Кабинет", avatar: "🩺", text: "Бактерицидная лампа (кварцевание) сломалась и работает только в открытом режиме. Можно я включу ее на 10 минут, пока в кабинете пациент сидит?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "ТОЛЬКО НА 10 МИНУТ", onLeft: { safety: 15, budget: -10, loyalty: -10, msg: "Кабинет не продезинфицирован, риск инфекций вырос." }, onRight: { safety: -45, budget: 5, loyalty: -25, msg: "У пациента и врача тяжелый ожог сетчатки глаз (электроофтальмия)." }, rule: "Руководство по эксплуатации УФ-облучателей. Присутствие людей при открытом кварцевании категорически запрещено." },
+      { id: 'h5', isUrgent: true, character: "Грузчик", role: "Зона погрузки", avatar: "💥", text: "Разгружали баллоны с медицинским кислородом, один упал и вентиль зашипел! Рядом парни курят. Бежать затыкать вентиль руками?", leftChoice: "ВСЕМ БЕЖАТЬ ОТТУДА", rightChoice: "ЗАТЫКАЙ БЫСТРО", onLeft: { safety: 30, budget: -30, loyalty: 15, msg: "Баллон стравил кислород. Имущество утеряно, но все живы." }, onRight: { safety: -75, budget: -40, loyalty: 0, msg: "Кислород вступил в контакт с маслом на перчатках. Произошел мощнейший объемный взрыв." }, rule: "ПОТ при работе с баллонами под давлением. Запрет контакта арматуры кислородного баллона с жирами и маслами." },
+      { id: 'h6', isUrgent: false, character: "Сотрудник прачечной", role: "Прачечная", avatar: "🧺", text: "Сломался концевик на люке промышленной стиральной машины. Барабан вращается даже при открытой дверце. Белье надо стирать!", leftChoice: "ОСТАНОВИТЬ МАШИНУ", rightChoice: "СТИРАЙТЕ ОСТОРОЖНО", onLeft: { safety: 20, budget: -20, loyalty: -15, msg: "Медицинское белье не постирано. Скандал от главврача." }, onRight: { safety: -60, budget: 15, loyalty: -10, msg: "Работнице намотало руку на вращающийся центробежный барабан. Травматическая ампутация." }, rule: "ПОТ при эксплуатации оборудования. Запрет работы при неисправных блокировках безопасности." },
+      { id: 'h7', isUrgent: false, character: "Рентгенолог", role: "Рентген-кабинет", avatar: "☢️", text: "Свинцовый фартук рентген-лаборанта порвался по шву. Новый стоит 40 000 рублей. Можно я его обычным армированным скотчем замотаю?", leftChoice: "КУПИТЬ НОВЫЙ", rightChoice: "КЛЕЙ СКОТЧЕМ", onLeft: { safety: 20, budget: -25, loyalty: 10, msg: "Бюджет похудел на 40к, но лаборант защищен от облучения." }, onRight: { safety: -50, budget: 20, loyalty: -20, msg: "Через полгода у лаборанта выявили критическую дозу облучения. Иск к клинике." }, rule: "Радиационная безопасность (ОСПОРБ). Поврежденные средства радиационной защиты подлежат списанию." },
+      { id: 'h8', isUrgent: false, character: "Шеф-повар", role: "Пищеблок", avatar: "🍲", text: "У нас отключили горячую воду! А надо мыть посуду инфекционного отделения. Давай холодной ополоснем с фейри, авось пронесет?", leftChoice: "ИСПОЛЬЗОВАТЬ ОДНОРАЗОВУЮ", rightChoice: "МОЙТЕ ХОЛОДНОЙ", onLeft: { safety: 20, budget: -25, loyalty: -10, msg: "Закупили сотни одноразовых тарелок. Огромный перерасход." }, onRight: { safety: -65, budget: 10, loyalty: -20, msg: "Внутрибольничная вспышка острой кишечной инфекции. Роспотребнадзор опечатал пищеблок." }, rule: "СанПиН. Мытье столовой посуды допускается только в горячей воде." },
+      { id: 'h9', isUrgent: false, character: "Сантехник", role: "Крыша", avatar: "❄️", text: "Надо сбить сосульки над входом в Медблок. Привязи нет. Натяну веревку обычную, обвяжусь за пояс и полезу?", leftChoice: "СТОЙ ВНИЗУ", rightChoice: "ДАВАЙ, АККУРАТНО", onLeft: { safety: 15, budget: -15, loyalty: -10, msg: "Вызвали промышленных альпинистов за деньги." }, onRight: { safety: -55, budget: 10, loyalty: -10, msg: "Сантехник поскользнулся. Веревка сломала ему ребра, он повис на фасаде." }, rule: "ПОТ на высоте. Запрет использования самодельных страховочных систем без амортизаторов рывка." },
+      { id: 'h10', isUrgent: false, character: "Медбрат", role: "Склад", avatar: "🔌", text: "В комнате отдыха холодно. Я принес из дома старый масляный радиатор. Вилка искрит, но если изолентой прижать — греет!", leftChoice: "ИЗЪЯТЬ И ВЫКИНУТЬ", rightChoice: "ОСТАВЬ, МЕРЗНЕМ ЖЕ", onLeft: { safety: 20, budget: -10, loyalty: -20, msg: "Персонал ненавидит вас за то, что вы лишили их тепла." }, onRight: { safety: -45, budget: 0, loyalty: 15, msg: "Ночью радиатор замкнул. Комната отдыха выгорела дотла." }, rule: "ППБ. Запрет использования неисправных и самодельных электронагревательных приборов." }
+    ]
+  };
+
+  // СЮЖЕТНЫЕ БОСС-КАРТОЧКИ (Вызываются по флагам)
+  const BOSS_CARDS = {
+      fire_show_consequence: { id: 'boss1', isUrgent: true, character: "МЧС", role: "Госпожнадзор", avatar: "🚒", text: "К нам попало видео блогера из вашего отеля. Вы разрешили заклеить датчики дыма (АПС)! Это грубейшее нарушение. Штраф 500 000 руб или будем судиться?", leftChoice: "ПЛАТИТЬ ШТРАФ", rightChoice: "СУДИТЬСЯ С МЧС", onLeft: { safety: 0, budget: -60, loyalty: -10, msg: "Бюджет уничтожен огромным штрафом. Но вы избежали закрытия отеля." }, onRight: { safety: -50, budget: 0, loyalty: -30, msg: "Вы проиграли суд. Деятельность отеля приостановлена на 90 суток. Вас уволили." }, rule: "КоАП РФ Статья 20.4 ч.1. Нарушение требований пожарной безопасности." },
+      git_bribe_consequence: { id: 'boss2', isUrgent: true, character: "СБ Отеля", role: "Безопасность", avatar: "🕵️", text: "Антон, ФСБ задержала того инспектора ГИТ. Он сдал всех, кто давал ему взятки, включая наш отель! Опергруппа уже на ресепшене!", leftChoice: "БРАТЬ ВИНУ НА СЕБЯ", rightChoice: "ВАЛИТЬ НА ДИРЕКТОРА", onLeft: { safety: -100, budget: 0, loyalty: 30, msg: "Вы сели в тюрьму. Зато руководство наняло вам хорошего адвоката." }, onRight: { safety: -10, budget: -50, loyalty: -100, msg: "Директор откупился за счет бюджета, но вас с позором вышвырнули с волчьим билетом." }, rule: "УК РФ Статья 291. Дача взятки должностному лицу." }
+  };
+
+  // АЧИВКИ (МЕТА-ПРОГРЕСС)
+  const ACHIEVEMENTS_LIST = [ 
+      { id: 'greed', icon: '🤑', title: 'Корпоративный Дракон', desc: 'Ради бюджета вы пожертвовали жизнями людей.' }, 
+      { id: 'tyrant', icon: '⚔️', title: 'Душнила по ТБ', desc: 'Безопасность идеальная, но вас все ненавидят.' }, 
+      { id: 'soft', icon: '🧸', title: 'Мать Тереза', desc: 'Угодили всем, но оставили отель без копейки денег.' }, 
+      { id: 'slow', icon: '🐢', title: 'Тормоз', desc: 'Не успели принять решение во время форс-мажора.' }, 
+      { id: 'pro', icon: '🏆', title: 'Аттестован', desc: 'Успешно прошли все сценарии кампании без фатальных ошибок.' } 
   ];
 
-  const ACHIEVEMENTS_LIST = [ { id: 'greed', icon: '🤑', title: 'Дракон', desc: 'Спас деньги, но потерял людей.' }, { id: 'tyrant', icon: '⚔️', title: 'Душнила', desc: 'Идеальное ТБ, но вас ненавидят.' }, { id: 'soft', icon: '🧸', title: 'Мать Тереза', desc: 'Угодил всем и разорил компанию.' }, { id: 'slow', icon: '🐢', title: 'Тормоз', desc: 'Не успел принять решение.' }, { id: 'blat', icon: '☎️', title: 'Блат не спас', desc: 'Звонил В.В., но провалился.' }, { id: 'pro', icon: '🏆', title: 'Мастер', desc: 'Продержался 20 смен.' } ];
+  // МАГАЗИН: РАЗВИТИЕ ИНФРАСТРУКТУРЫ
+  const TERRITORY_UPGRADES = [ 
+      { id: 't_fire', icon: '🚨', name: 'Система АПС "Bolid"', desc: 'Модернизация датчиков (+10 Безопасность на старте)', cost: 3 }, 
+      { id: 't_med', icon: '🚑', name: 'Аптечки ФЭСТ', desc: 'Повышает спокойствие (+10 Лояльность на старте)', cost: 3 }, 
+      { id: 't_warehouse', icon: '🏗️', name: 'Стеллажи Склад', desc: 'Меньше порчи товара (+10 Бюджет на старте)', cost: 3 } 
+  ];
 
   /* =========================================================
-     МОДУЛЬ 2: AUDIO ENGINE + ИДЕЯ 4 (ADAPTIVE AMBIENT)
-  ========================================================= */
-  const AudioEngine = (() => {
-      let ctx = null; let enabled = false; 
-      let tensionOsc = null; let tensionGain = null;
-      let ambientActive = false;
-      let humOsc, humGain, heartOsc, heartGain, zapOsc, zapGain;
-
-      const init = () => { 
-          if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); } 
-          if (ctx.state === 'suspended') ctx.resume(); 
-          enabled = true; 
-          startAmbient(); // Запускаем фоновый звук при старте
-      };
-
-      const playTone = (freq, type, duration, vol = 0.1, slideFreq = null) => {
-          if (!enabled || !ctx) return;
-          const osc = ctx.createOscillator(); const gain = ctx.createGain();
-          osc.type = type; osc.connect(gain); gain.connect(ctx.destination);
-          osc.frequency.setValueAtTime(freq, ctx.currentTime);
-          if (slideFreq) osc.frequency.exponentialRampToValueAtTime(slideFreq, ctx.currentTime + duration);
-          gain.gain.setValueAtTime(vol, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-          osc.start(); osc.stop(ctx.currentTime + duration);
-      };
-      
-      // Идея 3: Напряжение при натяжении карты
-      const setTension = (intensity) => {
-          if (!enabled || !ctx) return;
-          if (intensity <= 0.1) {
-              if (tensionGain) tensionGain.gain.setTargetAtTime(0.001, ctx.currentTime, 0.1); 
-              return;
-          }
-          if (!tensionOsc) {
-              tensionOsc = ctx.createOscillator(); tensionGain = ctx.createGain();
-              tensionOsc.type = 'triangle'; tensionOsc.frequency.value = 40; 
-              tensionOsc.connect(tensionGain); tensionGain.connect(ctx.destination);
-              tensionGain.gain.value = 0.001; tensionOsc.start();
-          }
-          tensionGain.gain.setTargetAtTime(intensity * 0.3, ctx.currentTime, 0.1);
-          tensionOsc.frequency.setTargetAtTime(40 + (intensity * 40), ctx.currentTime, 0.1);
-      };
-
-      // Идея 4: Генеративный саунд-дизайн (Ambient)
-      const startAmbient = () => {
-          if(!enabled || ambientActive) return;
-          ambientActive = true;
-          
-          // Базовый гул (Серверная)
-          humOsc = ctx.createOscillator(); humGain = ctx.createGain();
-          humOsc.type = 'sine'; humOsc.frequency.value = 55;
-          humGain.gain.value = 0.05;
-          humOsc.connect(humGain).connect(ctx.destination);
-          humOsc.start();
-
-          // Сердцебиение (Опасность ТБ)
-          heartOsc = ctx.createOscillator(); heartGain = ctx.createGain();
-          heartOsc.type = 'sine'; heartOsc.frequency.value = 45;
-          heartGain.gain.value = 0; // Изначально выключен
-          
-          // LFO для пульсации сердца
-          const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 1.2;
-          const lfoGain = ctx.createGain(); lfoGain.gain.value = 1;
-          lfo.connect(lfoGain).connect(heartGain.gain);
-          lfo.start();
-          
-          heartOsc.connect(heartGain).connect(ctx.destination);
-          heartOsc.start();
-      };
-
-      // Обновляем фон на основе показателей
-      const updateAmbient = (stats) => {
-          if (!enabled || !ambientActive) return;
-          // Если Безопасность < 30, плавно включаем сердцебиение
-          if (stats.safety < 30) {
-              heartGain.gain.setTargetAtTime(0.4, ctx.currentTime, 1);
-          } else {
-              heartGain.gain.setTargetAtTime(0, ctx.currentTime, 1);
-          }
-          // Можно добавить треск для бюджета, но для стабильности пока хватит пульса
-      };
-
-      const stopAmbient = () => {
-          if(!ambientActive) return;
-          humGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
-          heartGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
-          setTimeout(() => {
-              if(humOsc) humOsc.stop(); if(heartOsc) heartOsc.stop();
-              ambientActive = false;
-          }, 600);
-      }
-
-      return {
-          init, swipe: () => playTone(300, 'sine', 0.2, 0.1, 100), stamp: () => playTone(100, 'square', 0.4, 0.3, 20),
-          alarm: () => { playTone(600, 'square', 0.1, 0.05); setTimeout(() => playTone(800, 'square', 0.1, 0.05), 100); },
-          ring: () => { for(let i=0; i<3; i++) { setTimeout(() => playTone(1000, 'sine', 0.1, 0.05), i*200); setTimeout(() => playTone(1300, 'sine', 0.1, 0.05), i*200 + 100); } },
-          error: () => playTone(200, 'sawtooth', 0.3, 0.2, 100),
-          setTension, updateAmbient, stopAmbient
-      };
-  })();
-
-  const vibrate = (pattern) => { if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.vibrate) window.navigator.vibrate(pattern); };
-  const burstParticles = (direction) => {
-      const color = direction === 'left' ? '#e11d48' : '#10b981';
-      for (let i = 0; i < 30; i++) {
-         const p = document.createElement('div'); p.className = 'particle'; const size = Math.random() * 10 + 5;
-         p.style.width = p.style.height = `${size}px`; p.style.backgroundColor = color; p.style.boxShadow = `0 0 15px ${color}`;
-         p.style.left = `${window.innerWidth/2}px`; p.style.top = `${window.innerHeight/2}px`;
-         p.style.setProperty('--tx', `${(Math.random()-0.5)*500}px`); p.style.setProperty('--ty', `${(Math.random()-0.5)*500 - 100}px`);
-         document.body.appendChild(p); setTimeout(() => p.remove(), 800);
-      }
-  };
-
-  const TypewriterText = ({ text }) => {
-      const [displayed, setDisplayed] = useState("");
-      useEffect(() => {
-          setDisplayed(""); let i = 0;
-          const timer = setInterval(() => { setDisplayed(text.slice(0, i + 1)); i++; if (i >= text.length) clearInterval(timer); }, 15);
-          return () => clearInterval(timer);
-      }, [text]);
-      const highlightWords = (str) => {
-          const words = ["убью", "штраф", "срочно", "пожар", "вскрыть", "уволю", "быстро", "скорую", "кровь", "эвакуация", "травма", "смерть", "упал", "взрыв"];
-          let res = str;
-          words.forEach(w => { const regex = new RegExp(`(${w})`, 'gi'); res = res.replace(regex, '<span class="text-rose-600 font-black animate-shake inline-block">$&</span>'); });
-          return { __html: res };
-      };
-      return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed relative z-10" />;
-  };
-
-  /* =========================================================
-     ИДЕЯ 2: ВЬЮШКИ ПАНЕЛИ ПРИБОРОВ
+     МОДУЛЬ 3: ВЬЮШКИ ПРИБОРОВ (ДИЕГЕТИЧЕСКИЙ UI)
   ========================================================= */
   const AnalogGauge = ({ value, icon, label, id }) => {
+      // Переводим 0-100% в градусы от -90 до 90
       const rotation = (value / 100) * 180 - 90;
       return (
           <div className="flex flex-col items-center gap-1" id={id}>
@@ -305,20 +237,44 @@
 
   const LCDDisplay = ({ value, icon, label, id }) => {
       const isDanger = value < 30;
+      // Конвертируем проценты бюджета в миллионы рублей (50% = 5 000 000 ₽)
+      const moneyValue = (value * 100000).toLocaleString('ru-RU');
       return (
           <div className="flex flex-col items-center gap-1" id={id}>
               <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest">{label}</div>
               <div className={`lcd-screen ${isDanger ? 'danger' : ''}`}>
-                 $ {value.toString().padStart(3, '0')}
+                 {moneyValue} ₽
               </div>
               <div className="text-2xl mt-1 filter drop-shadow-md">{icon}</div>
           </div>
       );
   };
 
+  // Шкала Лояльности (Горизонтальный UI с эмодзи)
+  const LoyaltyBar = ({ value, id }) => {
+      const isDanger = value < 30;
+      let emoji = "😐";
+      if (value > 70) emoji = "😎";
+      if (value < 30) emoji = "🤬";
+
+      let color = "#3b82f6"; // Синий по умолчанию
+      if (value > 70) color = "#10b981"; // Зеленый при высокой лояльности
+      if (value < 30) color = "#ef4444"; // Красный при бунте
+
+      return (
+          <div className="flex flex-col items-center gap-1" id={id}>
+              <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Лояльность</div>
+              <div className="loyalty-bar-container">
+                  <div className="loyalty-bar-fill" style={{ width: `${value}%`, backgroundColor: color }}></div>
+              </div>
+              <div className="text-2xl mt-1 filter drop-shadow-md transition-transform duration-300" style={{transform: isDanger ? 'scale(1.2)' : 'scale(1)'}}>{emoji}</div>
+          </div>
+      );
+  };
+
   /* =========================================================
-     МОДУЛЬ 3: ДВИЖОК СВАЙПОВ С ПРЕДСКАЗАНИЕМ (CardEngine.jsx)
-     ИДЕЯ 1 и 3: PHYSICS + PRE-COGNITION
+     МОДУЛЬ 4: ДВИЖОК СВАЙПОВ И ПРЕДСКАЗАНИЙ (CardEngine.jsx)
+     Содержит Пружинную физику, Гироскоп и DOM-инъекции
   ========================================================= */
   const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
       const cardRef = useRef(null);
@@ -326,6 +282,7 @@
 
       const SWIPE_THRESHOLD = 120; const SPRING_TENSION = 0.15; const FRICTION = 0.85;       
 
+      // Функция вычисляет, какую эмоцию показать персонажу при предсказании
       const getReactionEmoji = (effects, defaultAvatar) => {
           if (!effects) return defaultAvatar;
           if (effects.safety < -15 || effects.budget < -20) return "😰"; 
@@ -335,19 +292,22 @@
           return defaultAvatar; 
       };
 
+      // Прямая инъекция DOM для Предсказаний (60 FPS без лагов React State)
       const updatePredictions = (x) => {
           if (!card) return;
           const absX = Math.abs(x);
           const intensity = Math.min(absX / SWIPE_THRESHOLD, 1); 
           
+          // Нагнетаем звуковое напряжение пропорционально свайпу
           AudioEngine.setTension(intensity);
 
           const safetyUI = document.getElementById('gauge-safety');
           const budgetUI = document.getElementById('lcd-budget');
-          const loyaltyUI = document.getElementById('gauge-loyalty');
+          const loyaltyUI = document.getElementById('bar-loyalty');
           const avatarUI = document.getElementById('card-avatar');
           const cardWrapUI = document.getElementById('card-wrapper');
 
+          // СБРОС (Карточка в центре)
           if (absX < 30) {
               if (state.current.currentPrediction !== null) {
                   safetyUI?.classList.remove('gauge-predict-danger'); budgetUI?.classList.remove('lcd-predict-danger'); loyaltyUI?.classList.remove('gauge-predict-danger');
@@ -358,28 +318,35 @@
               return;
           }
 
+          // ПРЕДСКАЗАНИЕ ВЛЕВО ИЛИ ВПРАВО
           const dir = x < 0 ? 'left' : 'right';
           if (state.current.currentPrediction !== dir) {
               state.current.currentPrediction = dir;
               const effects = dir === 'left' ? card.onLeft : card.onRight;
               
+              // Сбрасываем старые предсказания
               safetyUI?.classList.remove('gauge-predict-danger'); budgetUI?.classList.remove('lcd-predict-danger'); loyaltyUI?.classList.remove('gauge-predict-danger');
               
+              // Включаем тревогу на приборах, если решение фатально
               if (effects.safety < -15) safetyUI?.classList.add('gauge-predict-danger');
               if (effects.budget < -15) budgetUI?.classList.add('lcd-predict-danger');
               if (effects.loyalty < -15) loyaltyUI?.classList.add('gauge-predict-danger');
 
+              // Изменяем лицо персонажа
               if (avatarUI) avatarUI.innerText = getReactionEmoji(effects, card.avatar);
               if (cardWrapUI) cardWrapUI.classList.add('avatar-predict');
               
+              // Легкая вибрация при понимании угрозы
               if (effects.safety < -15 || effects.budget < -15 || effects.loyalty < -15) vibrate(10);
           }
       };
 
+      // Расчет 3D-матрицы
       const updateTransform = () => {
           if (!cardRef.current) return;
           const { x, y, rx, ry } = state.current;
           
+          // CSS Матрица для 3D
           cardRef.current.style.transform = `translate3d(${x}px, ${y + Math.abs(x)*0.05}px, 0) rotateZ(${x * 0.05}deg) rotateY(${(x * 0.08) + ry}deg) rotateX(${(Math.abs(x) * 0.03) + rx}deg)`;
           
           const glare = cardRef.current.querySelector('.glare');
@@ -395,6 +362,7 @@
           updatePredictions(x);
       };
 
+      // Пружинный цикл возврата в центр
       const springLoop = () => {
           if (state.current.isDragging || state.current.isFlying) return;
           state.current.x += (0 - state.current.x) * SPRING_TENSION;
@@ -418,6 +386,7 @@
       };
 
       const handlePointerMove = (e) => {
+          // Параллакс от мыши (для ПК)
           if (!state.current.isDragging && e.type === 'mousemove' && !isBurning) {
               const rect = cardRef.current.getBoundingClientRect();
               state.current.rx = -((e.clientY - rect.top - rect.height/2) / rect.height) * 20; 
@@ -425,6 +394,8 @@
               updateTransform(); return;
           }
           if (!state.current.isDragging) return;
+          
+          // Добавляем резиновое сопротивление свайпу
           state.current.x = ((e.clientX || (e.touches && e.touches[0].clientX)) - state.current.startX) * 0.8; 
           state.current.y = ((e.clientY || (e.touches && e.touches[0].clientY)) - state.current.startY) * 0.8;
           updateTransform();
@@ -436,7 +407,7 @@
           if (state.current.x > SWIPE_THRESHOLD) triggerSwipe('right');
           else if (state.current.x < -SWIPE_THRESHOLD) triggerSwipe('left');
           else {
-              AudioEngine.setTension(0); 
+              AudioEngine.setTension(0); // Сбрасываем звук натяжения
               requestAnimationFrame(springLoop); 
           }
       };
@@ -449,6 +420,7 @@
           updateTransform(); onSwipe(direction);
       };
 
+      // Гироскоп для мобилок (Параллакс)
       useEffect(() => {
           const handleOrientation = (e) => {
               if (state.current.isDragging || state.current.isFlying || isBurning) return;
@@ -464,6 +436,13 @@
           state.current = { x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null };
           if(cardRef.current) cardRef.current.style.transform = `translate3d(0,0,0)`;
       }, [card]);
+
+      // Экспортируем функцию свайпа для кликов по кнопкам
+      React.useImperativeHandle(card?.ref, () => ({
+          forceSwipe: (dir) => {
+              if (!state.current.isDragging && !state.current.isFlying && !isBurning) triggerSwipe(dir);
+          }
+      }));
 
       if (!card) return null;
 
@@ -492,12 +471,158 @@
       );
   };
 
+  /* =========================================================
+     МОДУЛЬ 2: СУПЕР-АУДИО ДВИЖОК (Генеративный звук)
+  ========================================================= */
+  const AudioEngine = (() => {
+      let ctx = null; let enabled = false; 
+      let tensionOsc = null; let tensionGain = null;
+      let ambientActive = false; 
+      let humOsc, humGain, heartOsc, heartGain;
+
+      const init = () => { 
+          if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); } 
+          if (ctx.state === 'suspended') ctx.resume(); 
+          enabled = true; 
+          startAmbient(); 
+      };
+
+      // Продвинутый синтез звука с фильтром низких частот (сочный свайп и удар)
+      const playTone = (freq, type, duration, vol = 0.1, slideFreq = null, useFilter = false) => {
+          if (!enabled || !ctx) return;
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.type = type; 
+
+          if (useFilter) {
+              const filter = ctx.createBiquadFilter();
+              filter.type = 'lowpass'; filter.frequency.setValueAtTime(2000, ctx.currentTime);
+              filter.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + duration);
+              osc.connect(filter); filter.connect(gain);
+          } else {
+              osc.connect(gain); 
+          }
+          
+          gain.connect(ctx.destination);
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          if (slideFreq) osc.frequency.exponentialRampToValueAtTime(slideFreq, ctx.currentTime + duration);
+          gain.gain.setValueAtTime(vol, ctx.currentTime); 
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+          
+          osc.start(); osc.stop(ctx.currentTime + duration);
+      };
+      
+      // Нагнетание напряжения (Pre-cognition)
+      const setTension = (intensity) => {
+          if (!enabled || !ctx) return;
+          if (intensity <= 0.1) {
+              if (tensionGain) tensionGain.gain.setTargetAtTime(0.001, ctx.currentTime, 0.1); 
+              return;
+          }
+          if (!tensionOsc) {
+              tensionOsc = ctx.createOscillator(); tensionGain = ctx.createGain();
+              tensionOsc.type = 'sawtooth'; tensionOsc.frequency.value = 50; 
+              
+              const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 300;
+              tensionOsc.connect(lpf); lpf.connect(tensionGain); tensionGain.connect(ctx.destination);
+              tensionGain.gain.value = 0.001; tensionOsc.start();
+          }
+          tensionGain.gain.setTargetAtTime(intensity * 0.15, ctx.currentTime, 0.1); // Мягкая громкость
+          tensionOsc.frequency.setTargetAtTime(40 + (intensity * 60), ctx.currentTime, 0.1);
+      };
+
+      // Генеративный фоновый эмбиент (Adaptive Ambient)
+      const startAmbient = () => {
+          if(!enabled || ambientActive) return;
+          ambientActive = true;
+          
+          // Базовый гул предприятия
+          humOsc = ctx.createOscillator(); humGain = ctx.createGain();
+          humOsc.type = 'sine'; humOsc.frequency.value = 60;
+          humGain.gain.value = 0.05;
+          humOsc.connect(humGain).connect(ctx.destination);
+          humOsc.start();
+
+          // Сердцебиение (Пульс катастрофы)
+          heartOsc = ctx.createOscillator(); heartGain = ctx.createGain();
+          heartOsc.type = 'sine'; heartOsc.frequency.value = 45;
+          heartGain.gain.value = 0; 
+          
+          const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 1.2;
+          const lfoGain = ctx.createGain(); lfoGain.gain.value = 1;
+          lfo.connect(lfoGain).connect(heartGain.gain);
+          lfo.start();
+          
+          heartOsc.connect(heartGain).connect(ctx.destination);
+          heartOsc.start();
+      };
+
+      // Реакция эмбиента на изменение показателей
+      const updateAmbient = (stats) => {
+          if (!enabled || !ambientActive) return;
+          // Если Безопасность < 30, включаем тревожное сердцебиение
+          if (stats.safety < 30) heartGain.gain.setTargetAtTime(0.5, ctx.currentTime, 1);
+          else heartGain.gain.setTargetAtTime(0, ctx.currentTime, 1);
+      };
+
+      const stopAmbient = () => {
+          if(!ambientActive) return;
+          humGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
+          heartGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
+          setTimeout(() => { if(humOsc) humOsc.stop(); if(heartOsc) heartOsc.stop(); ambientActive = false; }, 600);
+      };
+
+      return {
+          init, 
+          swipe: () => playTone(200, 'sine', 0.3, 0.15, 50, true), // Ветреный свайп с фильтром
+          stamp: () => { playTone(150, 'square', 0.5, 0.4, 20, true); playTone(80, 'sawtooth', 0.4, 0.3, 10); }, // Мощный удар поражения
+          winStamp: () => { playTone(400, 'sine', 0.1, 0.2, 800); setTimeout(() => playTone(600, 'sine', 0.4, 0.2, 1200), 100); }, // Звук победы
+          alarm: () => { playTone(600, 'square', 0.1, 0.05); setTimeout(() => playTone(800, 'square', 0.1, 0.05), 100); },
+          ring: () => { for(let i=0; i<3; i++) { setTimeout(() => playTone(1000, 'sine', 0.1, 0.05), i*200); setTimeout(() => playTone(1300, 'sine', 0.1, 0.05), i*200 + 100); } },
+          error: () => playTone(150, 'sawtooth', 0.4, 0.2, 50, true),
+          setTension, updateAmbient, stopAmbient
+      };
+  })();
 
   /* =========================================================
-     МОДУЛЬ 5: ГЛАВНОЕ ЯДРО (App.jsx)
+     УТИЛИТЫ (Вибрация, Частицы, Пишущая машинка)
+  ========================================================= */
+  const vibrate = (pattern) => { if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.vibrate) window.navigator.vibrate(pattern); };
+  
+  const burstParticles = (direction) => {
+      const color = direction === 'left' ? '#e11d48' : '#10b981';
+      for (let i = 0; i < 30; i++) {
+         const p = document.createElement('div'); p.className = 'particle'; const size = Math.random() * 10 + 5;
+         p.style.width = p.style.height = `${size}px`; p.style.backgroundColor = color; p.style.boxShadow = `0 0 15px ${color}`;
+         p.style.left = `${window.innerWidth/2}px`; p.style.top = `${window.innerHeight/2}px`;
+         p.style.setProperty('--tx', `${(Math.random()-0.5)*500}px`); p.style.setProperty('--ty', `${(Math.random()-0.5)*500 - 100}px`);
+         document.body.appendChild(p); setTimeout(() => p.remove(), 800);
+      }
+  };
+
+  const TypewriterText = ({ text }) => {
+      const [displayed, setDisplayed] = useState("");
+      useEffect(() => {
+          setDisplayed(""); let i = 0;
+          const timer = setInterval(() => { setDisplayed(text.slice(0, i + 1)); i++; if (i >= text.length) clearInterval(timer); }, 15);
+          return () => clearInterval(timer);
+      }, [text]);
+      
+      const highlightWords = (str) => {
+          const words = ["убью", "штраф", "срочно", "пожар", "вскрыть", "уволю", "быстро", "скорую", "кровь", "эвакуация", "травма", "смерть", "упал", "взрыв", "катастрофа", "ожог", "взрывоопасного", "ампутация"];
+          let res = str;
+          words.forEach(w => { const regex = new RegExp(`(${w})`, 'gi'); res = res.replace(regex, '<span class="text-rose-600 font-black animate-shake inline-block">$&</span>'); });
+          return { __html: res };
+      };
+      
+      return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed relative z-10" />;
+  };
+
+  /* =========================================================
+     МОДУЛЬ 5: ГЛАВНОЕ ЯДРО ИГРЫ (App.jsx)
   ========================================================= */
   function Game() {
     const [gameState, setGameState] = useState('start'); 
+    const [activeCampaignId, setActiveCampaignId] = useState('main');
     
     const [day, setDay] = useState(1);
     const [stats, setStats] = useState({ safety: 50, budget: 50, loyalty: 50 });
@@ -505,23 +630,41 @@
     const [currentCard, setCurrentCard] = useState(null);
     const [nextCard, setNextCard] = useState(null);
     
+    const [actionLog, setActionLog] = useState([]); 
     const [deathReason, setDeathReason] = useState("");
+    const [isVictory, setIsVictory] = useState(false);
     const [feedback, setFeedback] = useState(null);
     const [timeLeft, setTimeLeft] = useState(8);
+    
     const [achievements, setAchievements] = useState([]);
+    const [coins, setCoins] = useState(0);
+    const [territory, setTerritory] = useState([]); 
+    const [playstyle, setPlaystyle] = useState({ s: 0, b: 0, l: 0 }); 
     
-    const [phoneState, setPhoneState] = useState({ open: false, ringing: false });
-    const [callUsed, setCallUsed] = useState(false);
-    
+    const [phoneState, setPhoneState] = useState({ open: false, tab: 'chats', ringing: false });
+    const [contactsUsed, setContactsUsed] = useState({ vv: false, buh: false, prof: false });
+    const [hasWarnedLowStats, setHasWarnedLowStats] = useState(false);
+
     const [isSharing, setIsSharing] = useState(false); 
     const [isBurning, setIsBurning] = useState(false);
+    
     const timerRef = useRef(null);
+    const engineRef = useRef();
 
+    const [messages, setMessages] = useState([
+        { id: 1, from: "Юлия Борисовна", text: "Антон, завтра выездная комиссия ГИТ. Проверь журналы инструктажей!", read: false }
+    ]);
+
+    // ЗАГРУЗКА СОХРАНЕНИЙ (Ачивки, Экономика)
     useEffect(() => {
-        try { setAchievements(JSON.parse(localStorage.getItem('smena_achievements') || '[]')); } catch(e) {}
+        try { 
+            setAchievements(JSON.parse(localStorage.getItem('smena_achievements') || '[]')); 
+            setCoins(parseInt(localStorage.getItem('smena_coins')) || 0); 
+            setTerritory(JSON.parse(localStorage.getItem('smena_territory') || '[]')); 
+        } catch(e) {}
     }, []);
 
-    // Обновляем фон и АУДИО при изменении статов
+    // ЭФФЕКТЫ ФОНА И ЭМБИЕНТА ПРИ ИЗМЕНЕНИИ ПОКАЗАТЕЛЕЙ
     useEffect(() => {
         if (gameState === 'playing') {
             if (stats.budget < 30) document.body.classList.add('critical-budget'); else document.body.classList.remove('critical-budget');
@@ -532,102 +675,161 @@
     }, [stats, gameState]);
 
     const unlockAchievement = (id) => {
-        setAchievements(prev => { if (prev.includes(id)) return prev; const newArr = [...prev, id]; try { localStorage.setItem('smena_achievements', JSON.stringify(newArr)); } catch(e) {} return newArr; });
+        setAchievements(prev => { 
+            if (prev.includes(id)) return prev; 
+            const newArr = [...prev, id]; 
+            try { localStorage.setItem('smena_achievements', JSON.stringify(newArr)); } catch(e) {} 
+            return newArr; 
+        });
     };
 
-    const getRank = (days) => {
-        if (days <= 5) return "Стажер с блокнотом";
-        if (days <= 10) return "Младший инспектор";
-        if (days <= 15) return "Гроза нарушителей";
-        if (days <= 20) return "Эксперт по ТБ";
-        return "Бог Охраны Труда";
+    const addCoins = (amount) => { 
+        const newCoins = coins + amount; 
+        setCoins(newCoins); 
+        localStorage.setItem('smena_coins', newCoins); 
     };
 
-    const startGame = () => {
-        AudioEngine.init(); vibrate(50);
-        setFeedback(null); setIsBurning(false); setPhoneState({ open: false, ringing: false }); 
-        setDay(1); setCallUsed(false); setTimeLeft(8); 
-        setStats({ safety: 50, budget: 50, loyalty: 50 });
+    const getRank = (days) => { 
+        if (days <= 5) return "Стажер с блокнотом"; 
+        if (days <= 10) return "Младший инспектор"; 
+        if (days <= 15) return "Гроза нарушителей"; 
+        return "Бог Охраны Труда"; 
+    };
 
-        const shuffled = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
-        setDeck(shuffled); setCurrentCard(shuffled[0]); setNextCard(shuffled[1]);
+    // СТАРТ ИГРЫ
+    const startGame = (campaignId) => {
+        AudioEngine.init(); vibrate(50); setActiveCampaignId(campaignId);
+        setFeedback(null); setIsBurning(false); setIsVictory(false); 
+        setPhoneState({ open: false, tab: 'chats', ringing: false }); 
+        setActionLog([]); setHasWarnedLowStats(false);
+        setDay(1); setContactsUsed({ vv: false, buh: false, prof: false }); 
+        setTimeLeft(8); setPlaystyle({ s: 0, b: 0, l: 0 });
+        
+        // Применяем пассивные баффы от купленных улучшений Территории
+        setStats({ 
+            safety: 50 + (territory.includes('t_fire') ? 10 : 0), 
+            budget: 50 + (territory.includes('t_warehouse') ? 10 : 0), 
+            loyalty: 50 + (territory.includes('t_med') ? 10 : 0) 
+        });
+
+        // Подготовка колоды для выбранной кампании
+        let initialDeck = [...(CAMPAIGNS[campaignId] || CAMPAIGNS.main)]; 
+        initialDeck = initialDeck.sort(() => Math.random() - 0.5);
+        
+        // Привязываем референс к первой карте для программного свайпа (от кнопок)
+        initialDeck[0].ref = engineRef; 
+        
+        setDeck(initialDeck); setCurrentCard(initialDeck[0]); setNextCard(initialDeck[1]); 
         setGameState('playing');
     };
 
     const handleTimeout = () => {
         unlockAchievement('slow'); setDeathReason("ИТОГ:\nВы растерялись в критической ситуации.\n\nВЕРДИКТ:\nВас отстранили за халатность.");
-        gameOverSequence();
+        setActionLog(prev => [...prev, { text: currentCard.text, choice: "БЕЗДЕЙСТВИЕ", isError: true, rule: currentCard.rule || "Нарушение регламента." }]);
+        gameOverSequence(false);
     };
 
-    const gameOverSequence = () => {
-        setIsBurning(true);
-        AudioEngine.stopAmbient();
-        setTimeout(() => { setGameState('gameover'); vibrate([500, 200, 500]); setTimeout(() => AudioEngine.stamp(), 100); }, 1200); 
+    const gameOverSequence = (victory = false) => {
+        setIsVictory(victory); setIsBurning(!victory); AudioEngine.stopAmbient();
+        if (Math.floor(day / 2) > 0) addCoins(Math.floor(day / 2));
+        
+        setTimeout(() => { 
+            setGameState('gameover'); vibrate([500, 200, 500]); 
+            setTimeout(() => { if (victory) AudioEngine.winStamp(); else AudioEngine.stamp(); }, 100); 
+        }, 1200); 
     };
 
+    // ТАЙМЕР ДЛЯ СРОЧНЫХ КАРТОЧЕК
     useEffect(() => {
         if (gameState === 'playing' && currentCard?.isUrgent && !phoneState.open && !feedback) {
-            timerRef.current = setInterval(() => {
-                setTimeLeft(prev => {
+            timerRef.current = setInterval(() => { 
+                setTimeLeft(prev => { 
                     if (prev <= 3 && prev > 1) AudioEngine.alarm(); 
-                    if (prev <= 1) { clearInterval(timerRef.current); handleTimeout(); return 0; }
-                    return prev - 1;
-                });
+                    if (prev <= 1) { clearInterval(timerRef.current); handleTimeout(); return 0; } 
+                    return prev - 1; 
+                }); 
             }, 1000);
             return () => clearInterval(timerRef.current);
         }
     }, [gameState, currentCard, phoneState.open, feedback]);
 
-    // ТАЙМЕР ПУША ТЕЛЕФОНА (Звонок В.В.)
+    // ТРИГГЕР ЗВОНКА ТЕЛЕФОНА В КРИТИЧЕСКОЙ СИТУАЦИИ
     useEffect(() => {
-        let hintTimer;
-        const needsHelp = stats.safety < 40 || stats.budget < 40 || stats.loyalty < 40;
-        if (needsHelp && !callUsed && gameState === 'playing' && !phoneState.open && !phoneState.ringing) {
-            AudioEngine.msg(); setPhoneState({...phoneState, ringing: true}); 
-        } else if (!needsHelp) { setPhoneState({...phoneState, ringing: false});}
+        let hintTimer; const needsHelp = stats.safety < 40 || stats.budget < 40 || stats.loyalty < 40;
+        if (needsHelp && (!contactsUsed.vv || !contactsUsed.buh || !contactsUsed.prof) && gameState === 'playing' && !phoneState.open && !hasWarnedLowStats) {
+            AudioEngine.msg(); setPhoneState({...phoneState, ringing: true}); setHasWarnedLowStats(true); 
+        } else if (!needsHelp) { 
+            setHasWarnedLowStats(false); setPhoneState({...phoneState, ringing: false});
+        }
         return () => clearTimeout(hintTimer);
-    }, [stats, callUsed, gameState, phoneState.open]);
+    }, [stats, contactsUsed, gameState, phoneState.open, hasWarnedLowStats]);
 
+    // ОБРАБОТКА СВАЙПА
     const handleSwipe = (direction) => {
       clearInterval(timerRef.current);
       const effects = direction === 'left' ? currentCard.onLeft : currentCard.onRight;
+      
+      setPlaystyle(prev => ({ s: prev.s + (effects.safety > 0 ? effects.safety : 0), b: prev.b + (effects.budget > 0 ? effects.budget : 0), l: prev.l + (effects.loyalty > 0 ? effects.loyalty : 0) }));
 
-      const newSafety = Math.min(100, Math.max(0, stats.safety + effects.safety));
-      const newBudget = Math.min(100, Math.max(0, stats.budget + effects.budget));
+      // Логирование ошибок для Аттестации
+      if (effects.safety < -15 || effects.budget < -15) {
+          AudioEngine.error(); 
+          setActionLog(prev => [...prev, { text: currentCard.text, choice: direction === 'left' ? currentCard.leftChoice : currentCard.rightChoice, isError: true, rule: currentCard.rule || "Нарушение регламента." }]);
+      }
+
+      const newSafety = Math.min(100, Math.max(0, stats.safety + effects.safety)); 
+      const newBudget = Math.min(100, Math.max(0, stats.budget + effects.budget)); 
       const newLoyalty = Math.min(100, Math.max(0, stats.loyalty + effects.loyalty));
-
+      
       setStats({ safety: newSafety, budget: newBudget, loyalty: newLoyalty });
       
       setTimeout(() => {
           setFeedback({ text: effects.msg, safety: effects.safety, budget: effects.budget, loyalty: effects.loyalty });
           setTimeout(() => {
               setFeedback(null); 
+              // Проверка на проигрыш
               if (newSafety <= 0 || newBudget <= 0 || newLoyalty <= 0) {
                   let res = newSafety <= 0 ? "Тяжелый НС всплыл в прокуратуре." : newBudget <= 0 ? "Вы разорили отель закупками." : "Рабочие устроили бунт.";
                   setDeathReason(`ПОСЛЕДНЕЕ РЕШЕНИЕ:\n${effects.msg}\n\nВЕРДИКТ:\n${res}`);
-                  if (newSafety <= 0 && newBudget >= 70) unlockAchievement('greed'); if (newLoyalty <= 0 && newSafety >= 70) unlockAchievement('tyrant');
-                  gameOverSequence(); return;
+                  if (newSafety <= 0 && newBudget >= 70) unlockAchievement('greed'); 
+                  if (newLoyalty <= 0 && newSafety >= 70) unlockAchievement('tyrant');
+                  gameOverSequence(false); return;
               }
+              
               setDay(prev => prev + 1); let newDeck = deck.slice(1);
+              
+              // Проверка на победу (колода кончилась)
               if (newDeck.length === 0) {
-                  unlockAchievement('pro'); setDeathReason("Сценарии закончились, вы продержались максимум!"); gameOverSequence(); return;
+                  unlockAchievement('pro'); setDeathReason("Сценарии закончились, вы успешно прошли смену!"); gameOverSequence(true); return;
               }
-              setDeck(newDeck); setCurrentCard(newDeck[0]); setNextCard(newDeck[1]); if(newDeck[0].isUrgent) setTimeLeft(8);
+              
+              newDeck[0].ref = engineRef;
+              setDeck(newDeck); setCurrentCard(newDeck[0]); setNextCard(newDeck[1]); 
+              if(newDeck[0].isUrgent) setTimeLeft(8);
           }, 2000); 
-      }, 400); 
+      }, 400); // 400мс - синхронизировано со временем улета физической карты
     };
 
-    const useContact = () => {
-        if (callUsed) return;
-        AudioEngine.ring(); vibrate([100, 50, 100]); setCallUsed(true);
-        setStats({ safety: 60, budget: 60, loyalty: 60 });
-        setPhoneState({ open: false, ringing: false });
+    // ФУНКЦИИ СМАРТФОНА
+    const useContact = (type) => {
+        if (contactsUsed[type]) return;
+        AudioEngine.ring(); vibrate([100, 50, 100]); setContactsUsed({ ...contactsUsed, [type]: true });
+        let newStats = { ...stats };
+        if (type === 'vv') { newStats = { safety: 60, budget: 60, loyalty: 60 }; }
+        if (type === 'buh') { newStats.budget = Math.min(100, newStats.budget + 30); newStats.loyalty = Math.max(0, newStats.loyalty - 20); }
+        if (type === 'prof') { newStats.loyalty = Math.min(100, newStats.loyalty + 30); newStats.budget = Math.max(0, newStats.budget - 20); }
+        setStats(newStats); setPhoneState({ ...phoneState, open: false });
     };
 
+    // ГЕНЕРАЦИЯ УДОСТОВЕРЕНИЯ (ШЕРИНГ)
     const shareResult = async () => {
         setIsSharing(true); await new Promise(r => setTimeout(r, 100)); 
-        const badgeElem = document.getElementById('share-badge-wrap'); const oldBodyOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'visible'; badgeElem.style.top = '0px'; badgeElem.style.left = '0px'; badgeElem.style.opacity = '1';
+        const badgeElem = document.getElementById('share-badge-wrap'); 
+        const oldBodyOverflow = document.body.style.overflow;
+        
+        document.body.style.overflow = 'visible'; 
+        badgeElem.style.top = '0px'; badgeElem.style.left = '0px'; badgeElem.style.opacity = '1';
+        
         await new Promise(r => setTimeout(r, 200));
         try {
             const canvas = await html2canvas(badgeElem, { scale: 2, backgroundColor: '#0f172a', windowWidth: 600, windowHeight: 900 });
@@ -639,27 +841,58 @@
         }
     };
 
-    const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 10 ? 'theme-day' : day <= 15 ? 'theme-evening' : 'theme-night';
+    const getTimeClass = () => day <= 3 ? 'theme-morning' : day <= 7 ? 'theme-day' : day <= 10 ? 'theme-evening' : 'theme-night';
 
+    /* РЕНДЕР: ЭКРАН ИГРА ОКОНЧЕНА */
     if (gameState === 'gameover') {
+      const totalPoints = (playstyle.s + playstyle.b + playstyle.l) || 1;
+      const sNorm = (playstyle.s / totalPoints) * 40; const bNorm = (playstyle.b / totalPoints) * 40; const lNorm = (playstyle.l / totalPoints) * 40;
+      const points = `50,${50-sNorm} ${50+bNorm*0.866},${50+bNorm*0.5} ${50-lNorm*0.866},${50+lNorm*0.5}`;
+      const moneyValue = (stats.budget * 100000).toLocaleString('ru-RU');
+
       return (
         <div id="gameover-container" className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative z-20 bg-[#0f172a] overflow-hidden">
             <div id="share-badge-wrap" className="share-badge">
                 <div className="badge-logo">🛡️ СМЕНА</div>
                 <div className="badge-title">Удостоверение СОТ</div><div className="badge-sub">Официальный результат</div>
-                <div className="badge-days-label">Продержался:</div><div className="badge-days">{day}</div>
+                <div className="badge-days-label">{isVictory ? 'Завершено:' : 'Продержался:'}</div><div className="badge-days">{day}</div>
                 <div className="badge-days-label" style={{marginTop:'10px', marginBottom:'40px'}}>смен</div>
                 <div className="badge-rank">{getRank(day)}</div>
-            </div>
-            <div className="absolute inset-0 overflow-y-auto custom-scroll flex flex-col items-center p-6">
-                <div className="text-7xl mb-2 mt-10">💀</div>
-                <h1 className={`text-3xl font-black uppercase tracking-widest drop-shadow-lg mb-4 text-rose-500`}>Смена Провалена</h1>
-                <div className={`bg-slate-800 border-2 p-4 rounded-3xl mb-4 max-w-sm w-full shadow-2xl border-rose-900`}>
-                    <p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium leading-relaxed">{deathReason}</p>
+                <div className="radar-box">
+                    <svg viewBox="0 0 100 100" width="300" height="300">
+                        <polygon points="50,10 84.6,70 15.4,70" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+                        <polygon points="50,23.3 73.1,63.3 26.9,63.3" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+                        <polygon points="50,36.6 61.5,56.6 38.5,56.6" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+                        <line x1="50" y1="50" x2="50" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
+                        <line x1="50" y1="50" x2="84.6" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
+                        <line x1="50" y1="50" x2="15.4" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
+                        <polygon points={points} fill="rgba(56, 189, 248, 0.6)" stroke="#38bdf8" strokeWidth="2" strokeLinejoin="round"/>
+                        <text x="50" y="5" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Правила</text>
+                        <text x="90" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Бюджет</text>
+                        <text x="10" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Люди</text>
+                    </svg>
                 </div>
-                <div className="stamp">УВОЛЕН</div>
+            </div>
+
+            <div className="absolute inset-0 overflow-y-auto custom-scroll flex flex-col items-center p-6">
+                <div className="text-7xl mb-2 mt-10">{isVictory ? '🎉' : '💀'}</div>
+                <h1 className={`text-3xl font-black uppercase tracking-widest drop-shadow-lg mb-4 ${isVictory ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {isVictory ? 'Аттестация Сдана' : 'Смена Провалена'}
+                </h1>
+                
+                <div className={`bg-slate-800 border-2 p-4 rounded-3xl mb-4 max-w-sm w-full shadow-2xl ${isVictory ? 'border-emerald-900' : 'border-rose-900'}`}>
+                    <p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium leading-relaxed mb-4">{deathReason}</p>
+                    <div className="border-t border-slate-700 pt-4 flex justify-between text-xs font-bold text-slate-400">
+                        <div>💰 Остаток: {moneyValue} ₽</div>
+                        <div>🛡️ ТБ: {stats.safety}%</div>
+                    </div>
+                </div>
+                
+                <div className="text-5xl font-black text-blue-400 mb-2 drop-shadow-lg">{day} <span className="text-xl">карточек</span></div>
+                <div className={`stamp ${isVictory ? 'stamp-victory' : ''}`}>{isVictory ? 'АТТЕСТОВАН' : 'УВОЛЕН'}</div>
+                
                 <div className="flex flex-col w-full max-w-xs gap-3 mt-8 mb-10 pb-10">
-                   <button onClick={shareResult} disabled={isSharing} className={`bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black py-4 w-full rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] tracking-widest uppercase flex justify-center gap-2 ${isSharing ? 'opacity-70' : 'active:scale-95'}`}>
+                   <button onClick={shareResult} disabled={isSharing} className={`bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black py-4 w-full rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] tracking-widest uppercase flex justify-center gap-2 ${isSharing ? 'opacity-70' : 'active:scale-95 transition-transform'}`}>
                        {isSharing ? '⌛ Генерируем...' : '📸 Поделиться'}
                    </button>
                    <button onClick={() => setGameState('start')} className="bg-slate-700 text-white font-black py-4 w-full rounded-full border border-slate-500 shadow-lg tracking-widest uppercase active:scale-95 transition-transform">В Главное меню</button>
@@ -669,6 +902,7 @@
       );
     }
 
+    /* РЕНДЕР: ГЛАВНОЕ МЕНЮ */
     if (gameState === 'start') {
       return (
         <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center animate-fade-in relative theme-morning">
@@ -678,20 +912,25 @@
           <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА 3.0</h1>
           <p className="text-lg font-bold text-blue-400 mb-8 uppercase tracking-widest">Аттестация СОТ</p>
           <div className="w-full max-w-xs flex flex-col gap-3 relative z-50">
-              <button onClick={startGame} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 active:scale-95 transition-transform">Начать Смену</button>
+              <button onClick={() => startGame('main')} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 active:scale-95 transition-transform">Начать Смену</button>
           </div>
         </div>
       );
     }
 
+    /* РЕНДЕР: ИГРОВОЙ ПРОЦЕСС */
     return (
       <div className={`flex flex-col h-[100dvh] overflow-hidden relative z-10 transition-all duration-1000 ${getTimeClass()}`}>
-        <div className="screen-crack"></div><div className="hazard-border"></div><div className="vignette-anger"></div>
+        <div className="hazard-border"></div><div className="vignette-anger"></div>
         <div className="mesh-container"><div className="blob blob-1 w-[500px] h-[500px] top-[-20%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[450px] h-[450px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '3s'}}></div></div>
         <div className="grid-overlay"></div><div className="noise"></div>
 
-        <button onClick={() => setPhoneState({ open: true, ringing: false })} className={`phone-btn ${phoneState.ringing ? 'ringing' : ''}`}>
-            📱 {phoneState.ringing && <div className="phone-badge-diegetic"></div>}
+        {/* СМАРТФОН */}
+        <button onClick={() => { setMessages(messages.map(m=>({...m, read: true}))); setPhoneState({open: true, tab: 'chats', ringing: false})}} className={`physical-phone ${phoneState.ringing ? 'ringing' : ''}`}>
+            <div className="phone-screen-mini">
+                <span className="text-[10px] text-slate-500 absolute bottom-1">09:41</span>
+                {messages.filter(m=>!m.read).length > 0 && <div className="phone-badge-diegetic"></div>}
+            </div>
         </button>
 
         {phoneState.open && (
@@ -699,13 +938,24 @@
                 <div className="bg-slate-800 flex-1 rounded-3xl border-4 border-slate-700 shadow-2xl flex flex-col overflow-hidden relative">
                     <div className="bg-slate-900 p-4 flex justify-between items-center border-b border-slate-700">
                         <div className="font-black text-xl text-white">Контакты СОТ</div>
-                        <button onClick={() => setPhoneState({ open: false, ringing: false })} className="text-slate-400 text-3xl font-bold hover:text-white">×</button>
+                        <button onClick={() => setPhoneState({...phoneState, open: false})} className="text-slate-400 text-3xl font-bold hover:text-white">×</button>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scroll mt-4">
-                        <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
-                            <div><div className="text-white font-bold">В.В. (Директор)</div><div className="text-emerald-400 text-[10px] uppercase">Восстановит всё до 60%</div></div>
-                            <button onClick={useContact} disabled={callUsed} className={`px-4 py-2 rounded-lg font-black text-sm ${!callUsed ? 'bg-emerald-500 text-slate-900' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
-                        </div>
+                    <div className="flex bg-slate-800 p-2 gap-2 border-b border-slate-700">
+                        <button onClick={()=>setPhoneState({...phoneState, tab: 'chats'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'chats' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>💬 Чаты</button>
+                        <button onClick={()=>setPhoneState({...phoneState, tab: 'contacts'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'contacts' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>📇 Контакты</button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scroll">
+                        {phoneState.tab === 'chats' && messages.map(msg => (
+                            <div key={msg.id} className="bg-slate-700 p-4 rounded-2xl rounded-tl-none self-start max-w-[85%] border border-slate-600 shadow-md">
+                                <div className="text-blue-400 font-bold text-[10px] uppercase mb-1">{msg.from}</div><div className="text-white text-sm">{msg.text}</div>
+                            </div>
+                        ))}
+                        {phoneState.tab === 'contacts' && (
+                            <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
+                                <div><div className="text-white font-bold">В.В. (Директор)</div><div className="text-emerald-400 text-[10px] uppercase">Восстановит всё до 60%</div></div>
+                                <button onClick={()=>useContact('vv')} disabled={contactsUsed.vv} className={`px-4 py-2 rounded-lg font-black text-sm ${!contactsUsed.vv ? 'bg-emerald-500 text-slate-900 shadow-md active:scale-95' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -715,33 +965,40 @@
             <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in bg-slate-900/80 backdrop-blur-md">
                 <div className="bg-white p-8 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center border-4 border-slate-200 flex flex-col items-center justify-center max-w-sm w-full">
                     <p className="text-slate-900 font-black text-xl mb-8 leading-relaxed whitespace-pre-line">{feedback.text}</p>
-                    <div className="flex gap-8 font-black text-2xl">
-                        {feedback.safety !== 0 && <span className={feedback.safety > 0 ? 'text-emerald-500' : 'text-rose-500'}>🛡️ {feedback.safety > 0 ? '+' : ''}{feedback.safety}</span>}
-                        {feedback.budget !== 0 && <span className={feedback.budget > 0 ? 'text-emerald-500' : 'text-rose-500'}>💰 {feedback.budget > 0 ? '+' : ''}{feedback.budget}</span>}
-                        {feedback.loyalty !== 0 && <span className={feedback.loyalty > 0 ? 'text-emerald-500' : 'text-rose-500'}>🤝 {feedback.loyalty > 0 ? '+' : ''}{feedback.loyalty}</span>}
-                    </div>
                 </div>
             </div>
         )}
 
+        {/* ПАНЕЛЬ ПРИБОРОВ */}
         <div className={`dashboard-panel`}>
             <div className="flex justify-between items-center mb-2 px-2">
                 <div className="font-black text-lg text-slate-400 tracking-widest uppercase">КАРТА {day}</div>
                 {currentCard?.isUrgent && !feedback && <div className="text-lg font-black text-rose-500 bg-rose-950 px-4 py-1 rounded-full border-2 border-rose-500 animate-pulse shadow-[0_0_15px_rgba(225,29,72,0.5)]">⏱️ 0:0{timeLeft}</div>}
             </div>
-            <div className="flex justify-between gap-4 px-1 mt-4">
-                <AnalogGauge id="gauge-loyalty" value={stats.loyalty} icon="🤝" label="Лояльность" />
-                <LCDDisplay id="lcd-budget" value={stats.budget} icon="💰" label="Бюджет" />
+            <div className="flex justify-between items-end gap-4 px-1 mt-4">
+                <LoyaltyBar value={stats.loyalty} id="bar-loyalty" />
+                <LCDDisplay id="lcd-budget" value={stats.budget} icon="" label="Бюджет" />
                 <AnalogGauge id="gauge-safety" value={stats.safety} icon="🛡️" label="Безопасность" />
             </div>
         </div>
 
+        {/* ДВИЖОК СВАЙПОВ */}
         <div className="flex-1 relative flex items-center justify-center p-2">
             <CardEngine card={currentCard} nextCard={nextCard} onSwipe={handleSwipe} isBurning={isBurning} />
         </div>
+
+        {/* КНОПКИ УПРАВЛЕНИЯ (ДЛЯ ПК) */}
+        {!feedback && !isBurning && !phoneState.open && (
+            <div className="p-4 pb-6 w-full max-w-[400px] mx-auto flex justify-between gap-3 z-20">
+                <button onClick={() => engineRef.current?.forceSwipe('left')} className="flex-1 bg-rose-100/90 text-rose-700 border-b-4 border-rose-300 font-black py-3 px-2 rounded-2xl uppercase text-[10px] sm:text-[11px] tracking-wider active:scale-95 transition-transform flex items-center justify-center leading-tight shadow-lg backdrop-blur-md cursor-pointer min-h-[56px] text-center">{currentCard?.leftChoice || 'ОТКАЗАТЬ'}</button>
+                <button onClick={() => engineRef.current?.forceSwipe('right')} className="flex-1 bg-emerald-100/90 text-emerald-700 border-b-4 border-emerald-300 font-black py-3 px-2 rounded-2xl uppercase text-[10px] sm:text-[11px] tracking-wider active:scale-95 transition-transform flex items-center justify-center leading-tight shadow-lg backdrop-blur-md cursor-pointer min-h-[56px] text-center">{currentCard?.rightChoice || 'РАЗРЕШИТЬ'}</button>
+            </div>
+        )}
       </div>
     );
   }
+  
+  // ИНИЦИАЛИЗАЦИЯ REACT
   createRoot(document.getElementById('game-root')).render(<Game />);
 </script>
 
