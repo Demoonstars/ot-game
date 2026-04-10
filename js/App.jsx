@@ -347,7 +347,7 @@ function Game() {
   if (gameState === 'achievements') {
       return (
           <div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
-              <button onClick={() => setGameState('start')} className="absolute top-6 left-6 text-slate-400 text-3xl font-black active:scale-90 transition-transform">←</button>
+              <button onClick={() => setGameState('start')} className="btn-back">←</button>
               <h2 className="text-3xl font-black uppercase tracking-widest text-emerald-400 mb-8">Удостоверения</h2>
               
               <div className="w-full max-w-md flex flex-col gap-4 overflow-y-auto pb-10 custom-scroll">
@@ -372,7 +372,7 @@ function Game() {
   if (gameState === 'office') {
       return (
           <div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
-              <button onClick={() => setGameState('start')} className="absolute top-6 left-6 text-slate-400 text-3xl font-black active:scale-90 transition-transform">←</button>
+              <button onClick={() => setGameState('start')} className="btn-back">←</button>
               <h2 className="text-3xl font-black uppercase tracking-widest text-blue-400 mb-2">Ваш Кабинет</h2>
               <div className="bg-slate-800 px-6 py-2 rounded-full border border-slate-600 mb-8 font-black text-xl text-yellow-400 shadow-md">Бюджет: {coins} 🪙</div>
               
