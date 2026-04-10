@@ -9,9 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
-      });
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW failed:', err)));
     }
   </script>
 
@@ -26,13 +24,12 @@
                     blob: { '0%': { transform: 'translate(0, 0) scale(1)' }, '33%': { transform: 'translate(30px, -50px) scale(1.1)' }, '66%': { transform: 'translate(-20px, 20px) scale(0.9)' }, '100%': { transform: 'translate(0, 0) scale(1)' } },
                     flicker: { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.3 }, '70%': { opacity: 0.8 }, '80%': { opacity: 0.1 } },
                     burn: { '0%': { filter: 'brightness(1) sepia(0)', transform: 'translateY(0) scale(1)' }, '50%': { filter: 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)', transform: 'translateY(-20px) scale(0.95)' }, '100%': { filter: 'brightness(0) sepia(1) hue-rotate(-50deg) saturate(10)', transform: 'translateY(50px) scale(0.8)', opacity: 0 } },
-                    slideUp: { '0%': { transform: 'translateY(100%)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
-                    hazardFlash: { '0%, 100%': { opacity: 0.8, boxShadow: 'inset 0 0 50px rgba(225, 29, 72, 0.4)' }, '50%': { opacity: 1, boxShadow: 'inset 0 0 100px rgba(225, 29, 72, 0.8)' } }
+                    hazardFlash: { '0%, 100%': { opacity: 0.8, boxShadow: 'inset 0 0 50px rgba(225, 29, 72, 0.4)' }, '50%': { opacity: 1, boxShadow: 'inset 0 0 100px rgba(225, 29, 72, 0.8)' } },
+                    slideUp: { '0%': { transform: 'translateY(100%)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } }
                 },
                 animation: {
                     shake: 'shake 0.3s infinite', blob: 'blob 7s infinite alternate', flicker: 'flicker 3s infinite',
-                    burn: 'burn 1.2s forwards cubic-bezier(0.4, 0, 0.2, 1)', slideUp: 'slideUp 0.3s ease-out forwards',
-                    hazard: 'hazardFlash 1.5s infinite'
+                    burn: 'burn 1.2s forwards cubic-bezier(0.4, 0, 0.2, 1)', hazard: 'hazardFlash 1.5s infinite', slideUp: 'slideUp 0.3s ease-out forwards'
                 }
             }
         }
@@ -48,15 +45,12 @@
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
     body { margin: 0; padding: 0; background-color: #020617; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; height: 100dvh; width: 100vw; transition: filter 0.5s; }
 
-    /* ДИНАМИЧЕСКИЙ ВИЗУАЛ ПРИ ПАДЕНИИ ПОКАЗАТЕЛЕЙ */
     body.critical-budget { filter: grayscale(0.7); }
     body.critical-budget .glass-panel { animation: flicker 4s infinite; border-color: rgba(255,0,0,0.3); }
     
-    /* ИДЕАЛЬНОЕ РЕШЕНИЕ ДЛЯ БЕЗОПАСНОСТИ: СИГНАЛЬНАЯ ЛЕНТА (Оставляет текст читаемым) */
     .hazard-border { position: fixed; inset: 0; z-index: 99; pointer-events: none; opacity: 0; transition: opacity 0.5s; border: 12px solid transparent; border-image: repeating-linear-gradient(45deg, #fbbf24, #fbbf24 20px, #1e293b 20px, #1e293b 40px) 12; }
     body.critical-safety .hazard-border { opacity: 1; animation: hazard 2s infinite; }
     
-    /* Злость коллектива (Красная виньетка) */
     .vignette-anger { position: fixed; inset: 0; z-index: 30; pointer-events: none; box-shadow: inset 0 0 150px rgba(225, 29, 72, 0); transition: box-shadow 1s; }
     body.critical-loyalty .vignette-anger { box-shadow: inset 0 0 200px rgba(153, 27, 27, 0.6); animation: heartbeat 2s infinite; }
 
@@ -79,7 +73,6 @@
     .glare { position: absolute; inset: 0; border-radius: 28px; pointer-events: none; transition: opacity 0.2s; z-index: 5; mix-blend-mode: overlay; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 50%); }
     .resetting { transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     .swiping-out { transition: transform 0.6s ease-out, opacity 0.6s ease-out; opacity: 0; pointer-events: none; }
-    .next-card { position: absolute; inset: 0; background: #f8fafc; border-radius: 32px; border: 4px solid #cbd5e1; transform: scale(0.92) translateY(20px); opacity: 0.8; z-index: -1; }
 
     .choice-indicator { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); padding: 8px 16px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0; border: 4px solid; z-index: 10; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: opacity 0.2s; white-space: nowrap; }
     .choice-left { color: #e11d48; border-color: #e11d48; }
@@ -89,7 +82,7 @@
     .phone-btn:active { transform: scale(0.9); }
     .phone-badge { position: absolute; top: -5px; right: -5px; background: #e11d48; color: white; font-size: 0.7rem; font-weight: bold; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #0f172a; animation: shake 1s infinite; }
 
-    .stamp { position: absolute; top: 15%; left: 50%; margin-left: -180px; font-size: 5.5rem; font-weight: 900; color: #e11d48; border: 10px solid #e11d48; padding: 15px 40px; border-radius: 20px; transform: rotate(-15deg); pointer-events: none; z-index: 100; text-shadow: 0 0 15px rgba(225,29,72,0.8); box-shadow: 0 0 30px rgba(225,29,72,0.8), inset 0 0 30px rgba(225,29,72,0.8); animation: stamp-smash 0.5s cubic-bezier(0.1, 2, 0.5, 1) forwards; animation-delay: 1.5s; opacity: 0; }
+    .stamp { position: absolute; top: 15%; left: 50%; margin-left: -180px; font-size: 5.5rem; font-weight: 900; color: #e11d48; border: 10px solid #e11d48; padding: 15px 40px; border-radius: 20px; transform: rotate(-15deg); pointer-events: none; z-index: 100; text-shadow: 0 0 15px rgba(225,29,72,0.8); box-shadow: 0 0 30px rgba(225,29,72,0.8), inset 0 0 30px rgba(225,29,72,0.8); animation: stamp-smash 0.5s cubic-bezier(0.1, 2, 0.5, 1) forwards; animation-delay: 1s; opacity: 0; }
     @keyframes stamp-smash { 0% { transform: scale(5) rotate(-20deg); opacity: 0; } 50% { transform: scale(1) rotate(-15deg); opacity: 1; } 100% { transform: scale(1) rotate(-15deg); opacity: 1; } }
 
     .particle { position: absolute; pointer-events: none; border-radius: 50%; z-index: 100; animation: fade-out 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
@@ -97,16 +90,15 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 
-    /* ГЕНЕРАТОР УДОСТОВЕРЕНИЯ (Исправлен баг обрезки/пустоты на мобилках) */
     .share-badge { position: absolute; top: -9999px; left: -9999px; width: 600px; height: 900px; background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; color: white; border: 20px solid #e2e8f0; border-radius: 40px; box-sizing: border-box; z-index: -10; opacity: 0; pointer-events: none;}
-    .badge-logo { font-size: 6rem; margin-bottom: 20px; text-shadow: 0 10px 10px rgba(0,0,0,0.5);} 
     .badge-title { font-size: 3.5rem; font-weight: 900; margin: 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px;} 
-    .badge-sub { font-size: 1.8rem; color: #94a3b8; margin-bottom: 30px; font-weight: bold;} 
     .badge-days { font-size: 8rem; font-weight: 900; margin: 0; line-height: 1; color: #f8fafc; text-shadow: 0 10px 30px rgba(0,0,0,0.5); } 
-    .badge-days-label { font-size: 2.2rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 30px; font-weight: 900;} 
-    .badge-rank { font-size: 2.8rem; font-weight: 700; color: #fbbf24; background: rgba(255,255,255,0.1); padding: 20px 50px; border-radius: 30px; border: 2px solid rgba(251, 191, 36, 0.5); text-align: center; line-height: 1.2; margin-bottom: 30px;}
-    .radar-box { width: 100%; display: flex; justify-content: center; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 20px; margin-bottom: 10px;}
-    .badge-watermark { margin-top: 20px; font-size: 1.2rem; color: rgba(255,255,255,0.3); letter-spacing: 2px; }
+    .badge-rank { font-size: 2.8rem; font-weight: 700; color: #fbbf24; background: rgba(255,255,255,0.1); padding: 20px 50px; border-radius: 30px; border: 2px solid rgba(251, 191, 36, 0.5); text-align: center;}
+
+    /* СТИЛИ ДЛЯ СКРОЛЛБАРА АНАЛИТИКИ */
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
   </style>
 </head>
 <body>
@@ -136,7 +128,8 @@
           alarm: () => { playTone(600, 'square', 0.1, 0.05); setTimeout(() => playTone(800, 'square', 0.1, 0.05), 100); },
           ring: () => { for(let i=0; i<3; i++) { setTimeout(() => playTone(1000, 'sine', 0.1, 0.05), i*200); setTimeout(() => playTone(1300, 'sine', 0.1, 0.05), i*200 + 100); } },
           buy: () => { playTone(800, 'sine', 0.1, 0.1, 1200); setTimeout(() => playTone(1200, 'sine', 0.2, 0.1, 1600), 100); },
-          msg: () => playTone(1500, 'sine', 0.1, 0.05, 2000)
+          msg: () => playTone(1500, 'sine', 0.1, 0.05, 2000),
+          error: () => playTone(200, 'sawtooth', 0.3, 0.2, 100)
       };
   })();
 
@@ -159,9 +152,8 @@
           const timer = setInterval(() => { setDisplayed(text.slice(0, i + 1)); i++; if (i >= text.length) clearInterval(timer); }, 15);
           return () => clearInterval(timer);
       }, [text]);
-
       const highlightWords = (str) => {
-          const words = ["убью", "штраф", "срочно", "пожар", "вскрыть", "уволю", "быстро", "скорую", "кровь", "эвакуация", "травма", "смерть", "упал", "взрыв", "катастрофа"];
+          const words = ["убью", "штраф", "срочно", "пожар", "вскрыть", "уволю", "быстро", "скорую", "кровь", "эвакуация", "травма", "смерть", "упал", "взрыв"];
           let res = str;
           words.forEach(w => { const regex = new RegExp(`(${w})`, 'gi'); res = res.replace(regex, '<span class="text-rose-600 font-black animate-shake inline-block">$&</span>'); });
           return { __html: res };
@@ -169,67 +161,57 @@
       return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-700 text-[1.15rem] font-semibold text-center leading-relaxed relative z-10" />;
   };
 
-  const ALL_SCENARIOS = [
-    { id: 'c1', isUrgent: false, character: "Дежурный специалист", role: "РЭО", avatar: "🪜", text: "У нас перегорела люстра в холле лобби. Высота 5 метров. Леса собирать долго, давай ребята две стремянки поставят и доску между ними кинут?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "РАЗРЕШИТЬ", onLeft: { safety: 15, budget: -10, loyalty: -5, msg: "Люстра не горит. Гости жалуются на темноту." }, onRight: { safety: -30, budget: 5, loyalty: 5, msg: "Доска треснула. Рабочий упал с 5 метров. Уголовное дело." } },
-    { id: 'c2', isUrgent: false, character: "Шеф-повар", role: "Служба питания", avatar: "🍳", text: "Фритюрница искрит на контактах. Электрик будет только завтра. Я замотал изолентой, банкет надо выдавать. Работаем?", leftChoice: "ВЫВЕСТИ ИЗ СТРОЯ", rightChoice: "ГОТОВЬ АККУРАТНО", onLeft: { safety: 15, budget: -15, loyalty: -10, msg: "Меню банкета сорвано. Отель платит неустойку." }, onRight: { safety: -40, budget: 15, loyalty: 0, msg: "Короткое замыкание. Пожар в горячем цеху, эвакуация." } },
-    { id: 'c3', isUrgent: false, character: "Горничная", role: "ГХ", avatar: "🩸", text: "Я убирала номер и укололась о шприц в мусорке... Пожалуйста, давайте не будем оформлять акт о несчастном случае, меня же уволят!", leftChoice: "ОФОРМИТЬ НС", rightChoice: "СКРЫТЬ ТРАВМУ", onLeft: { safety: 15, budget: -5, loyalty: -10, msg: "Оформлен НС. Комиссия, проверки, бумажная волокита." }, onRight: { safety: -40, budget: 5, loyalty: 15, msg: "Через месяц у нее нашли гепатит С. Скрытие НС всплыло. Вы под следствием." } },
-    { id: 'c4', isUrgent: true, character: "Сигнализация", role: "Диспетчерская", avatar: "🚨", text: "Сработала пожарная сигнализация в SPA-комплексе! Там сейчас 50 гостей в купальниках. Может это ложное от пара сауны? Ждем разведку или эвакуируем?!", leftChoice: "ЭВАКУАЦИЯ!", rightChoice: "ЖДЕМ 5 МИНУТ", onLeft: { safety: 15, budget: -10, loyalty: -15, msg: "Гости мерзли на улице в халатах. Тревога была ложной." }, onRight: { safety: -50, budget: 0, loyalty: 0, msg: "Это было реальное возгорание проводки. Люди отравились угаром." } },
-    { id: 'c5', isUrgent: false, character: "Служба персонала", role: "Кадры", avatar: "📋", text: "Завтра заезд детского лагеря, а у 10 новых поваров нет справок от психиатра. Поликлиника выдаст их только в понедельник. Выпускаем на смену?", leftChoice: "ОТСТРАНИТЬ", rightChoice: "ПУСТЬ РАБОТАЮТ", onLeft: { safety: 15, budget: -15, loyalty: -10, msg: "Нехватка персонала, дети ждали еду по 2 часа." }, onRight: { safety: -30, budget: 10, loyalty: 10, msg: "Проверка Роспотребнадзора нашла нарушение. Штраф 500к на юр.лицо." } },
-    { id: 'c6', isUrgent: false, character: "Главный Инженер", role: "Подрядчики", avatar: "👷", text: "Приехали подрядчики чистить вентиляцию. Нарядов-допусков на работу в ОЗП (замкнутых пространствах) у них нет, газоанализатора тоже. Пускаем?", leftChoice: "ПРОГНАТЬ ИХ", rightChoice: "ПУСТЬ ЛЕЗУТ", onLeft: { safety: 15, budget: -10, loyalty: -10, msg: "Вентиляция грязная, бюджет горит." }, onRight: { safety: -40, budget: 15, loyalty: 5, msg: "Рабочий задохнулся в шахте. Вы не проверили их допуски." } },
-    { id: 'c7', isUrgent: true, character: "Прораб", role: "Стройка", avatar: "💣", text: "Копали котлован под бассейн и нашли ржавый снаряд времен войны! Директор орет: 'Закапывайте обратно, у нас сроки!'. Что делаем?", leftChoice: "ВЫЗВАТЬ МЧС", rightChoice: "ЗАКОПАТЬ", onLeft: { safety: 25, budget: -20, loyalty: -15, msg: "Стройка встала на неделю. Директор в ярости, но все живы." }, onRight: { safety: -70, budget: 20, loyalty: 0, msg: "Снаряд сдетонировал от вибрации экскаватора. Катастрофа." } },
-    { id: 'c8', isUrgent: false, character: "VIP-Гость", role: "Блогер", avatar: "🔥", text: "Известный блогер снимает в номере фаер-шоу. Он заклеил скотчем датчик дыма. Будем выселять со скандалом или пусть снимает?", leftChoice: "ВЫСЕЛИТЬ", rightChoice: "ПУСТЬ СНИМАЕТ", setFlag: 'fire_show', onLeft: { safety: 20, budget: -15, loyalty: -15, msg: "Блогер написал разгромный отзыв. Отель потерял рейтинг, но не сгорел." }, onRight: { safety: -20, budget: 15, loyalty: 10, msg: "Шоу прошло отлично. Но вы чувствуете, что это аукнется..." } },
-    { id: 'c9', isUrgent: true, character: "IT-Служба", role: "СКУД", avatar: "💻", text: "Сбой системы! Электронные замки заблокировали 10 гостей в номерах, а тут еще ложная пожарная тревога. Ломать двери кувалдой или ждать сисадмина?", leftChoice: "ЛОМАТЬ ДВЕРИ", rightChoice: "ЖДАТЬ АДМИНА", onLeft: { safety: 20, budget: -20, loyalty: 10, msg: "Двери в щепки, бюджет плачет, но гости спасены от паники." }, onRight: { safety: -40, budget: 10, loyalty: -20, msg: "У одного гостя случился сердечный приступ от паники взаперти." } },
-    { id: 'c10', isUrgent: false, character: "Уборщица", role: "ГХ", avatar: "🪣", text: "Закончились желтые предупреждающие таблички 'Осторожно, мокрый пол'. Я просто швабру поперек коридора положу, чтобы не ходили?", leftChoice: "ПОЛОЖИТЬ ШВАБРУ", rightChoice: "КУПИТЬ ТАБЛИЧКИ", onLeft: { safety: -20, budget: 5, loyalty: 0, msg: "Гость споткнулся о вашу швабру и сломал нос. Гениальное решение." }, onRight: { safety: 15, budget: -5, loyalty: 10, msg: "Заказали таблички. Все по правилам." } }
-  ];
-
-  const BOSS_CARDS = {
-      fire_show_consequence: { id: 'boss1', isUrgent: true, character: "МЧС", role: "Инспектор", avatar: "🚒", text: "На видео блогера видно, что вы разрешили заклеить датчики дыма. Это грубейшее нарушение ППБ! Штраф полмиллиона или суд?", leftChoice: "ПЛАТИТЬ ШТРАФ", rightChoice: "СУДИТЬСЯ", onLeft: { safety: 0, budget: -50, loyalty: -10, msg: "Бюджет уничтожен штрафом." }, onRight: { safety: -40, budget: 0, loyalty: -20, msg: "Суд проигран. Вас лишили должности." } }
+  // БАЗА ЗНАНИЙ (СЮЖЕТЫ + ПРАВИЛА ТБ ДЛЯ АНАЛИТИКИ)
+  const CAMPAIGNS = {
+    main: [
+      { id: 'm1', isUrgent: false, character: "Электрик", role: "Главный корпус", avatar: "🔌", text: "В подвале вода по щиколотку после ливня, а там щитовая. Диэлектрических бот нет. Пойду в резиновых сапогах?", leftChoice: "СТОЙ!", rightChoice: "ИДИ АККУРАТНО", onLeft: { safety: 15, budget: -10, loyalty: -5, msg: "Подвал затопило." }, onRight: { safety: -50, budget: 10, loyalty: 5, msg: "Удар током. Летальный исход." }, rule: "ПТБ при эксплуатации электроустановок. Запрет работы без СИЗ в сырых помещениях." },
+      { id: 'm2', isUrgent: false, character: "Офис-менеджер", role: "Офис", avatar: "🗂️", text: "Срок инструктажа. Собрать всех в зале на час (оторвать от работы) или скинуть презентацию на почту для галочки?", leftChoice: "СОБРАТЬ В ЗАЛЕ", rightChoice: "НА ПОЧТУ", onLeft: { safety: 15, budget: -10, loyalty: -5, msg: "Инструктаж пройден честно." }, onRight: { safety: -10, budget: 10, loyalty: 10, msg: "Все рады, знаний ноль." }, rule: "Постановление №2464. Инструктаж должен проводиться лично с проверкой знаний." },
+      { id: 'm3', isUrgent: false, character: "Снабженец", role: "Склад", avatar: "📦", text: "Огнетушители со скидкой 40%, но без паспортов. Расставляем?", leftChoice: "ВЕРНУТЬ", rightChoice: "БЕРЕМ", onLeft: { safety: 15, budget: -10, loyalty: -5, msg: "Ждем новую партию." }, onRight: { safety: -30, budget: 15, loyalty: 0, msg: "При возгорании они не сработали." }, rule: "ППБ. Запрет использования первичных средств пожаротушения без паспортов и пломб." }
+    ],
+    park: [
+      { id: 'p1', isUrgent: true, character: "Охранник", role: "Парковка", avatar: "🚗", text: "Машина въехала в столб, дым из-под капота! Бежать тушить или выводить людей?", leftChoice: "ЭВАКУАЦИЯ", rightChoice: "ТУШИТЬ", onLeft: { safety: 20, budget: -20, loyalty: 10, msg: "Все живы." }, onRight: { safety: -40, budget: -10, loyalty: 0, msg: "Машина взорвалась." }, rule: "Инструкция по ПБ. Приоритет — эвакуация и спасение людей до начала тушения." },
+      { id: 'p2', isUrgent: false, character: "Прораб", role: "Стройка парка", avatar: "💣", text: "Откопали ржавый снаряд. Директор орет закапывать обратно, у нас сроки!", leftChoice: "ВЫЗВАТЬ МЧС", rightChoice: "ЗАКОПАТЬ", onLeft: { safety: 25, budget: -20, loyalty: -15, msg: "Стройка встала." }, onRight: { safety: -70, budget: 20, loyalty: 0, msg: "Снаряд сдетонировал." }, rule: "Действия при ЧС. При обнаружении ВОП немедленно остановить работы и вызвать МЧС." },
+      { id: 'p3', isUrgent: false, character: "Официант", role: "Ресторан", avatar: "🩹", text: "Порезал палец слайсером. Кровь на доске. Бинт есть, перекиси нет. Работаем?", leftChoice: "В МЕДПУНКТ", rightChoice: "ЗАМОТАЙ", onLeft: { safety: 15, budget: -5, loyalty: -5, msg: "Смена без рук." }, onRight: { safety: -30, budget: 5, loyalty: -10, msg: "Кровь в блюде." }, rule: "СанПиН и Инструкция по первой помощи. Работник с травмой отстраняется от работы с пищей." }
+    ],
+    med: [
+      { id: 'h1', isUrgent: false, character: "Медсестра", role: "Процедурная", avatar: "💉", text: "Контейнеры для острых отходов (Класс Б) переполнены. Можно я иглы пока в пластиковую бутылку буду кидать?", leftChoice: "ЗАПРЕТИТЬ", rightChoice: "АККУРАТНО", onLeft: { safety: 15, budget: -10, loyalty: -10, msg: "Остановка приема." }, onRight: { safety: -40, budget: 10, loyalty: 5, msg: "Уборщица проколола ногу иглой через пластик." }, rule: "СанПиН 2.1.3684-21. Сбор острых отходов Класса Б только в твердую непрокалываемую тару." },
+      { id: 'h2', isUrgent: true, character: "Завхоз", role: "Склад Медикаментов", avatar: "🧪", text: "Разбилась бутыль с дезинфектантом. Запах едкий, режет глаза. Просто помыть пол шваброй?", leftChoice: "ВЫЗВАТЬ КЛИНИНГ", rightChoice: "МОЙ САМА", onLeft: { safety: 20, budget: -15, loyalty: 10, msg: "Убрали в респираторах." }, onRight: { safety: -40, budget: 5, loyalty: -15, msg: "Ожог дыхательных путей парами хлора." }, rule: "Охрана труда с хим. веществами. Ликвидация разлива только с применением СИЗОД." }
+    ]
   };
 
-  const ACHIEVEMENTS_LIST = [
-        { id: 'greed', icon: '🤑', title: 'Дракон', desc: 'Спас деньги, но потерял людей.' },
-        { id: 'tyrant', icon: '⚔️', title: 'Душнила', desc: 'Идеальное ТБ, но вас ненавидят.' },
-        { id: 'soft', icon: '🧸', title: 'Мать Тереза', desc: 'Угодил всем и разорил компанию.' },
-        { id: 'slow', icon: '🐢', title: 'Тормоз', desc: 'Не успел в форс-мажоре.' },
-        { id: 'pro', icon: '🏆', title: 'Мастер', desc: 'Продержался 20 смен.' }
-  ];
+  const ACHIEVEMENTS_LIST = [ { id: 'greed', icon: '🤑', title: 'Дракон', desc: 'Спас деньги, но потерял людей.' }, { id: 'tyrant', icon: '⚔️', title: 'Душнила', desc: 'Идеальное ТБ, но вас ненавидят.' }, { id: 'pro', icon: '🏆', title: 'Мастер', desc: 'Прошел кампанию без фатальных ошибок.' } ];
 
-  const OFFICE_ITEMS = [
-      { id: 'chair', icon: '💺', name: 'Кресло Босса', desc: '+5 к стартовой Лояльности', cost: 5 },
-      { id: 'safe', icon: '🏦', name: 'Мини-сейф', desc: '+5 к стартовому Бюджету', cost: 5 },
-      { id: 'plant', icon: '🌿', name: 'Фикус', desc: '+5 к стартовой Безопасности', cost: 5 }
+  // МЕТА-ИГРА: ТЕРРИТОРИЯ И ИНФРАСТРУКТУРА
+  const TERRITORY_UPGRADES = [
+      { id: 't_fire', icon: '🚨', name: 'Система АПС', desc: 'Защита от пожаров (+Старт. Безопасность)', cost: 5 },
+      { id: 't_med', icon: '🚑', name: 'Новые аптечки', desc: 'Лояльность персонала (+Старт. Лояльность)', cost: 5 },
+      { id: 't_warehouse', icon: '🏗️', name: 'Оптимизация склада', desc: 'Снижение издержек (+Старт. Бюджет)', cost: 5 }
   ];
 
   function Game() {
-    const [gameState, setGameState] = useState('start'); 
+    const [gameState, setGameState] = useState('start'); // start, campaign_select, territory, playing, gameover, analytics
+    const [activeCampaignId, setActiveCampaignId] = useState('main');
+    
     const [day, setDay] = useState(1);
     const [stats, setStats] = useState({ safety: 50, budget: 50, loyalty: 50 });
     const [flash, setFlash] = useState({ safety: false, budget: false, loyalty: false }); 
-    const [deck, setDeck] = useState(ALL_SCENARIOS);
+    const [deck, setDeck] = useState([]);
     const [currentCard, setCurrentCard] = useState(null);
     const [nextCard, setNextCard] = useState(null);
+    
+    // АНАЛИТИКА (Логгирование ошибок)
+    const [actionLog, setActionLog] = useState([]); 
     const [deathReason, setDeathReason] = useState("");
+    
     const [feedback, setFeedback] = useState(null);
     const [timeLeft, setTimeLeft] = useState(8);
     
-    // МЕТА-ИГРА И ПРОФИЛИРОВАНИЕ
     const [achievements, setAchievements] = useState([]);
     const [coins, setCoins] = useState(0);
-    const [office, setOffice] = useState([]); 
+    const [territory, setTerritory] = useState([]); 
     const [playstyle, setPlaystyle] = useState({ s: 0, b: 0, l: 0 }); 
-    const [flags, setFlags] = useState({}); 
     
-    // ИНТЕРФЕЙС
-    const [showGallery, setShowGallery] = useState(false);
-    const [showOfficeUI, setShowOfficeUI] = useState(false);
     const [phoneState, setPhoneState] = useState({ open: false, tab: 'chats' });
-    const [hasSave, setHasSave] = useState(false);
-
-    // ПАСХАЛКА В ТЕЛЕФОНЕ
-    const [messages, setMessages] = useState([
-        { id: 1, from: "Юлия Борисовна", text: "Антон, завтра выездная комиссия ГИТ в СОФРИНО-ПАРК. Проверь журналы инструктажей, чтобы без косяков! Штрафы платить не будем.", read: false },
-        { id: 2, from: "Алексей (Стройка)", text: "Слушай, мы тут на траншее кабель порвали, искрит жестко. Я пока парням сказал изолентой мотнуть. Норм?", read: false }
-    ]);
     const [contactsUsed, setContactsUsed] = useState({ vv: false, buh: false, prof: false });
 
     const [dragPos, setDragPos] = useState(0);
@@ -248,30 +230,17 @@
         try { 
             setAchievements(JSON.parse(localStorage.getItem('smena_achievements') || '[]')); 
             setCoins(parseInt(localStorage.getItem('smena_coins')) || 0);
-            setOffice(JSON.parse(localStorage.getItem('smena_office') || '[]'));
-            if(localStorage.getItem('smena_save')) setHasSave(true);
+            setTerritory(JSON.parse(localStorage.getItem('smena_territory') || '[]'));
         } catch(e) {}
     }, []);
 
-    // АВТОСОХРАНЕНИЕ
     useEffect(() => {
-        if (gameState === 'playing' && currentCard && !feedback && !swipingOut) {
-            localStorage.setItem('smena_save', JSON.stringify({ day, stats, currentCard, nextCard, contactsUsed, timeLeft, flags, playstyle }));
-        }
-    }, [day, stats, currentCard, nextCard, contactsUsed, timeLeft, flags, playstyle, gameState, feedback, swipingOut]);
-
-    // ТАЙМЕР ПУША ТЕЛЕФОНА
-    useEffect(() => {
-        let hintTimer;
-        const needsHelp = stats.safety < 40 || stats.budget < 40 || stats.loyalty < 40;
-        const canUseContact = !contactsUsed.vv || !contactsUsed.buh || !contactsUsed.prof;
-        
-        if (needsHelp && canUseContact && gameState === 'playing' && !phoneState.open) {
-            AudioEngine.msg(); 
-            hintTimer = setTimeout(() => {}, 7000);
-        }
-        return () => clearTimeout(hintTimer);
-    }, [stats, contactsUsed, gameState, phoneState.open]);
+        if (gameState === 'playing') {
+            if (stats.budget < 30) document.body.classList.add('critical-budget'); else document.body.classList.remove('critical-budget');
+            if (stats.safety < 30) document.body.classList.add('critical-safety'); else document.body.classList.remove('critical-safety');
+            if (stats.loyalty < 30) document.body.classList.add('critical-loyalty'); else document.body.classList.remove('critical-loyalty');
+        } else document.body.className = ''; 
+    }, [stats, gameState]);
 
     const unlockAchievement = (id) => {
         setAchievements(prev => {
@@ -286,11 +255,11 @@
         const newCoins = coins + amount; setCoins(newCoins); localStorage.setItem('smena_coins', newCoins);
     };
 
-    const buyItem = (item) => {
-        if (coins >= item.cost && !office.includes(item.id)) {
+    const buyTerritory = (item) => {
+        if (coins >= item.cost && !territory.includes(item.id)) {
             AudioEngine.buy(); addCoins(-item.cost);
-            const newOffice = [...office, item.id];
-            setOffice(newOffice); localStorage.setItem('smena_office', JSON.stringify(newOffice));
+            const newTerritory = [...territory, item.id];
+            setTerritory(newTerritory); localStorage.setItem('smena_territory', JSON.stringify(newTerritory));
         }
     };
 
@@ -298,84 +267,54 @@
         if (days <= 5) return "Стажер с блокнотом";
         if (days <= 10) return "Младший инспектор";
         if (days <= 15) return "Гроза нарушителей";
-        if (days <= 20) return "Эксперт по ТБ";
         return "Бог Охраны Труда";
     };
 
-    // ГЕНЕРАТОР РАДАРА
-    const renderRadarChart = () => {
-        const total = (playstyle.s + playstyle.b + playstyle.l) || 1;
-        const sNorm = (playstyle.s / total) * 40;
-        const bNorm = (playstyle.b / total) * 40;
-        const lNorm = (playstyle.l / total) * 40;
-        
-        const pS = `50,${50 - sNorm}`; const pB = `${50 + bNorm * 0.866},${50 + bNorm * 0.5}`; const pL = `${50 - lNorm * 0.866},${50 + lNorm * 0.5}`;
-        const points = `${pS} ${pB} ${pL}`;
-
-        let typeText = "Универсал";
-        if (sNorm > Math.max(bNorm, lNorm) * 1.5) typeText = "«Душнила по ТБ»";
-        if (bNorm > Math.max(sNorm, lNorm) * 1.5) typeText = "«Корпоративный Дракон»";
-        if (lNorm > Math.max(sNorm, bNorm) * 1.5) typeText = "«Мать Тереза»";
-
-        return (
-            <div className="w-full flex flex-col items-center justify-center mt-6">
-                <div className="text-xl font-bold text-slate-300 mb-2 tracking-widest uppercase">Ваш психотип:</div>
-                <div className="text-3xl font-black text-amber-400 mb-6 drop-shadow-md">{typeText}</div>
-                <svg viewBox="0 0 100 100" className="w-48 h-48 drop-shadow-2xl">
-                    <polygon points="50,10 84.6,70 15.4,70" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                    <polygon points="50,23.3 73.1,63.3 26.9,63.3" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                    <polygon points="50,36.6 61.5,56.6 38.5,56.6" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                    <line x1="50" y1="50" x2="50" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                    <line x1="50" y1="50" x2="84.6" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                    <line x1="50" y1="50" x2="15.4" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                    <polygon points={points} fill="rgba(56, 189, 248, 0.6)" stroke="#38bdf8" strokeWidth="2" strokeLinejoin="round"/>
-                    <text x="50" y="5" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Правила</text>
-                    <text x="90" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Бюджет</text>
-                    <text x="10" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Люди</text>
-                </svg>
-            </div>
-        );
-    };
-
-    const startGame = (loadSave = false) => {
+    const startGame = (campaignId) => {
         AudioEngine.init(); vibrate(50);
+        setActiveCampaignId(campaignId);
+        
         setFeedback(null); setSwipingOut(false); setDragPos(0); setIsDragging(false); setBgState(""); setIsBurning(false);
-        setPhoneState({ open: false, tab: 'chats' });
+        setPhoneState({ open: false, tab: 'chats' }); setActionLog([]);
+        
+        setDay(1); setContactsUsed({ vv: false, buh: false, prof: false }); setTimeLeft(8); setPlaystyle({ s: 0, b: 0, l: 0 });
+        
+        // ПРИМЕНЯЕМ БАФФЫ ТЕРРИТОРИИ
+        const startS = 50 + (territory.includes('t_fire') ? 10 : 0);
+        const startB = 50 + (territory.includes('t_warehouse') ? 10 : 0);
+        const startL = 50 + (territory.includes('t_med') ? 10 : 0);
+        setStats({ safety: startS, budget: startB, loyalty: startL });
 
-        if (loadSave && localStorage.getItem('smena_save')) {
-            const saved = JSON.parse(localStorage.getItem('smena_save'));
-            setDay(saved.day); setStats(saved.stats); setCurrentCard(saved.currentCard); setNextCard(saved.nextCard);
-            setContactsUsed(saved.contactsUsed || { vv: false, buh: false, prof: false }); 
-            setTimeLeft(saved.timeLeft || 8); setFlags(saved.flags || {}); setPlaystyle(saved.playstyle || { s: 0, b: 0, l: 0 });
+        // Формируем колоду конкретной кампании
+        let initialDeck = [...(CAMPAIGNS[campaignId] || CAMPAIGNS.main)];
+        // Если карт мало, докидываем базовых
+        if (campaignId !== 'main' && initialDeck.length < 5) {
+            initialDeck = [...initialDeck, ...CAMPAIGNS.main].sort(() => Math.random() - 0.5);
         } else {
-            localStorage.removeItem('smena_save'); setHasSave(false);
-            setDay(1); setContactsUsed({ vv: false, buh: false, prof: false }); setTimeLeft(8); setFlags({}); setPlaystyle({ s: 0, b: 0, l: 0 });
-            
-            const startS = 50 + (office.includes('plant') ? 5 : 0);
-            const startB = 50 + (office.includes('safe') ? 5 : 0);
-            const startL = 50 + (office.includes('chair') ? 5 : 0);
-            setStats({ safety: startS, budget: startB, loyalty: startL });
-
-            const shuffled = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
-            setDeck(shuffled); setCurrentCard(shuffled[0]); setNextCard(shuffled[1]);
+            initialDeck = initialDeck.sort(() => Math.random() - 0.5);
         }
+
+        setDeck(initialDeck); setCurrentCard(initialDeck[0]); setNextCard(initialDeck[1]);
         setGameState('playing');
     };
 
     const handleTimeout = () => {
         unlockAchievement('slow'); setDeathReason("ИТОГ:\nВы растерялись в критической ситуации.\n\nВЕРДИКТ:\nВас отстранили за халатность.");
+        
+        // Логируем ошибку таймаута
+        setActionLog(prev => [...prev, { 
+            text: currentCard.text, choice: "БЕЗДЕЙСТВИЕ", isError: true, 
+            rule: currentCard.rule || "Нарушение регламента реагирования на ЧС." 
+        }]);
+
         gameOverSequence();
     };
 
     const gameOverSequence = () => {
         setIsBurning(true);
-        localStorage.removeItem('smena_save'); setHasSave(false);
-        const earnedCoins = Math.floor(day / 10);
+        const earnedCoins = Math.floor(day / 2); // Больше монет за кампании
         if (earnedCoins > 0) addCoins(earnedCoins);
-
-        setTimeout(() => {
-            setGameState('gameover'); vibrate([500, 200, 500]); setTimeout(() => AudioEngine.stamp(), 1500); 
-        }, 1000); 
+        setTimeout(() => { setGameState('gameover'); vibrate([500, 200, 500]); setTimeout(() => AudioEngine.stamp(), 1500); }, 1200); 
     };
 
     useEffect(() => {
@@ -402,9 +341,17 @@
       
       setPlaystyle(prev => ({ s: prev.s + (effects.safety > 0 ? effects.safety : 0), b: prev.b + (effects.budget > 0 ? effects.budget : 0), l: prev.l + (effects.loyalty > 0 ? effects.loyalty : 0) }));
 
-      const newFlags = { ...flags };
-      if (currentCard.setFlag && direction === 'right') newFlags[currentCard.setFlag] = true;
-      setFlags(newFlags);
+      // АНАЛИТИКА: Если решение привело к серьезному минусу безопасности или бюджета - это ошибка.
+      const isError = effects.safety < -15 || effects.budget < -15;
+      if (isError) {
+          AudioEngine.error(); // Звук ошибки
+          setActionLog(prev => [...prev, { 
+              text: currentCard.text, 
+              choice: direction === 'left' ? currentCard.leftChoice : currentCard.rightChoice, 
+              isError: true, 
+              rule: currentCard.rule || "Нарушение локального акта отеля/парка." 
+          }]);
+      }
 
       const newSafety = Math.min(100, Math.max(0, stats.safety + effects.safety));
       const newBudget = Math.min(100, Math.max(0, stats.budget + effects.budget));
@@ -424,9 +371,7 @@
                   let res = newSafety <= 0 ? "Тяжелый НС всплыл в прокуратуре." : newBudget <= 0 ? "Вы разорили отель закупками." : "Рабочие устроили бунт.";
                   setDeathReason(`ПОСЛЕДНЕЕ РЕШЕНИЕ:\n${effects.msg}\n\nВЕРДИКТ:\n${res}`);
                   if (newSafety <= 0 && newBudget >= 70) unlockAchievement('greed');
-                  if (newBudget <= 0 && newLoyalty >= 70) unlockAchievement('soft');
                   if (newLoyalty <= 0 && newSafety >= 70) unlockAchievement('tyrant');
-                  if (day > 20) unlockAchievement('pro');
                   gameOverSequence();
                   return;
               }
@@ -434,11 +379,12 @@
               setDay(prev => prev + 1);
               let newDeck = deck.slice(1);
               
-              if (newFlags.fire_show && !newFlags.fire_show_done && day > 5) {
-                  newDeck.unshift(BOSS_CARDS.fire_show_consequence);
-                  newFlags.fire_show_done = true; setFlags(newFlags);
-              } else if (newDeck.length < 2) {
-                  newDeck = [...ALL_SCENARIOS].sort(() => Math.random() - 0.5);
+              // Победа в кампании, если колода закончилась
+              if (newDeck.length === 0) {
+                  unlockAchievement('pro');
+                  setDeathReason("Вы успешно завершили все сценарии кампании!\nРуководство довольно вашими компетенциями.");
+                  gameOverSequence();
+                  return;
               }
 
               setDeck(newDeck); setCurrentCard(newDeck[0]); setNextCard(newDeck[1]); setDragPos(0); 
@@ -460,11 +406,6 @@
         setStats(newStats); setPhoneState({ ...phoneState, open: false });
     };
 
-    const markMessagesRead = () => {
-        if(!phoneState.open) setMessages(messages.map(m => ({...m, read: true})));
-        setPhoneState({ open: !phoneState.open, tab: 'chats' });
-    };
-
     const handlePointerDown = (e) => {
       if(phoneState.open || feedback || swipingOut || isBurning) return;
       setIsDragging(true); setStartX(e.clientX || (e.touches && e.touches[0].clientX));
@@ -484,26 +425,12 @@
       if (dragPos > 100) makeChoice('right'); else if (dragPos < -100) makeChoice('left'); else setDragPos(0);
     };
 
-    // ИСПРАВЛЕННАЯ ЛОГИКА ГЕНЕРАЦИИ УДОСТОВЕРЕНИЯ (Без обрезки и темного фона)
     const shareResult = async () => {
-        setIsSharing(true);
-        // Даем кнопке время перерисоваться
-        await new Promise(r => setTimeout(r, 100)); 
-
+        setIsSharing(true); await new Promise(r => setTimeout(r, 100)); 
         const badgeElem = document.getElementById('share-badge-wrap');
-        const gameoverContainer = document.getElementById('gameover-container');
-        
-        // ВАЖНО: Разрешаем overflow на время создания скриншота, чтобы не было обрезки
         const oldBodyOverflow = document.body.style.overflow;
-        if (gameoverContainer) gameoverContainer.style.overflow = 'visible';
         document.body.style.overflow = 'visible';
-
-        // Перемещаем бейдж в видимую зону (но прячем за основным фоном с помощью z-index)
-        badgeElem.style.top = '0px';
-        badgeElem.style.left = '0px';
-        badgeElem.style.opacity = '1';
-
-        // Ждем перерисовки браузера
+        badgeElem.style.top = '0px'; badgeElem.style.left = '0px'; badgeElem.style.opacity = '1';
         await new Promise(r => setTimeout(r, 200));
 
         try {
@@ -512,54 +439,67 @@
             const file = new File([blob], 'smena-result.png', { type: 'image/png' });
             
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ title: 'Мой результат в СМЕНЕ', text: `Я продержался ${day} смен! Звание: ${getRank(day)}`, files: [file] });
+                await navigator.share({ title: 'Мой результат в СМЕНЕ', text: `Я прошел ${day} смен! Звание: ${getRank(day)}`, files: [file] });
             } else {
                 const a = document.createElement('a'); a.href = dataUrl; a.download = `Smena_${day}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
             }
-        } catch (e) { 
-            console.error(e);
-            alert("Не удалось создать изображение."); 
-        } finally {
-            // Возвращаем все как было
+        } catch (e) { alert("Ошибка сохранения."); } finally {
             document.body.style.overflow = oldBodyOverflow;
-            if (gameoverContainer) gameoverContainer.style.overflow = 'hidden';
-            
-            badgeElem.style.top = '-9999px';
-            badgeElem.style.left = '-9999px';
-            badgeElem.style.opacity = '0';
-            setIsSharing(false);
+            badgeElem.style.top = '-9999px'; badgeElem.style.left = '-9999px'; badgeElem.style.opacity = '0'; setIsSharing(false);
         }
     };
 
     const getFlaskGlow = (val) => val > 60 ? '#10b981' : val > 30 ? '#f59e0b' : '#ef4444';
-    const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 10 ? 'theme-day' : day <= 15 ? 'theme-evening' : 'theme-night';
+    const getTimeClass = () => day <= 3 ? 'theme-morning' : day <= 7 ? 'theme-day' : day <= 10 ? 'theme-evening' : 'theme-night';
     const currentAvatar = currentCard ? ((stats.loyalty < 30 && !currentCard.isUrgent) ? "🤬" : currentCard.avatar) : "";
-    const unreadCount = messages.filter(m => !m.read).length;
 
-    // ИСПРАВЛЕНЫ КНОПКИ "НАЗАД"
-    if (showOfficeUI) {
+    // МЕНЮ 1: ВЫБОР КАМПАНИИ
+    if (gameState === 'campaign_select') {
+        return (
+            <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col animate-fade-in">
+                <button onClick={() => setGameState('start')} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg mb-6 active:scale-95 transition-transform w-max">← Назад</button>
+                <h2 className="text-2xl font-black text-white mb-2">Выбор Объекта</h2>
+                <p className="text-sm text-slate-400 mb-6">Где сегодня пройдет смена?</p>
+                
+                <div className="flex flex-col gap-4">
+                    <button onClick={() => startGame('main')} className="p-4 bg-slate-800 border-2 border-blue-500 rounded-2xl flex items-center gap-4 text-left active:scale-95 transition-transform shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                        <div className="text-5xl">🏢</div>
+                        <div><div className="text-white font-black text-lg">Главный Корпус</div><div className="text-slate-400 text-xs">Базовый инструктаж и общие правила. Идеально для новичков.</div></div>
+                    </button>
+                    <button onClick={() => startGame('park')} className="p-4 bg-slate-800 border-2 border-emerald-500 rounded-2xl flex items-center gap-4 text-left active:scale-95 transition-transform shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                        <div className="text-5xl">🌲</div>
+                        <div><div className="text-white font-black text-lg">Парк-Отель</div><div className="text-slate-400 text-xs">Гости, подрядчики на улице и форс-мажоры.</div></div>
+                    </button>
+                    <button onClick={() => startGame('med')} className="p-4 bg-slate-800 border-2 border-rose-500 rounded-2xl flex items-center gap-4 text-left active:scale-95 transition-transform shadow-[0_0_15px_rgba(225,29,72,0.3)]">
+                        <div className="text-5xl">🏥</div>
+                        <div><div className="text-white font-black text-lg">Медицинский Блок</div><div className="text-slate-400 text-xs">Жесткие СанПиНы, опасные отходы. Только для профи.</div></div>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // МЕНЮ 2: РАЗВИТИЕ ТЕРРИТОРИИ
+    if (gameState === 'territory') {
         return (
             <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col animate-fade-in">
                 <div className="flex justify-between items-center mb-6">
-                    <button onClick={() => setShowOfficeUI(false)} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg active:scale-95 transition-transform w-max">
-                        <span className="text-xl leading-none">←</span> Назад
-                    </button>
+                    <button onClick={() => setGameState('start')} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg active:scale-95 transition-transform w-max">← Назад</button>
                     <div className="bg-amber-500/20 text-amber-400 px-4 py-2 rounded-full font-black border border-amber-500/50 whitespace-nowrap shadow-lg">💰 {coins}</div>
                 </div>
-                <h2 className="text-2xl font-black text-white mb-2">Мой Кабинет</h2>
-                <p className="text-sm text-slate-400 mb-6">Покупай мебель за СОТ-монеты. Баффы работают всегда!</p>
+                <h2 className="text-2xl font-black text-white mb-2">Инфраструктура</h2>
+                <p className="text-sm text-slate-400 mb-6">Покупайте оборудование для объектов. Баффы работают всегда.</p>
                 
-                <div className="w-full h-40 bg-slate-800 rounded-2xl border-4 border-slate-700 mb-8 relative flex items-end justify-center overflow-hidden shadow-inner">
-                    <div className="absolute bottom-0 w-full h-1/2 bg-slate-900 border-t border-slate-700"></div>
-                    <div className="text-6xl relative z-10 mx-2">{office.includes('chair') ? '💺' : '🪑'}</div>
-                    <div className="text-4xl absolute bottom-4 left-4 z-10">{office.includes('safe') ? '🏦' : '📦'}</div>
-                    <div className="text-4xl absolute bottom-4 right-4 z-10">{office.includes('plant') ? '🌿' : '🗑️'}</div>
-                    {office.includes('plant') && <div className="absolute top-2 right-1/4 text-2xl">🖼️</div>}
+                <div className="w-full h-40 bg-slate-800 rounded-2xl border-4 border-slate-700 mb-8 relative flex items-center justify-center overflow-hidden shadow-inner bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0wIDBoNDB2NDBIMHoiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMikiLz48cGF0aCBkPSJNMCAwdjQwbTQwIDBWMG0tNDAgMjBoNDAiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')]">
+                    {territory.includes('t_fire') && <div className="absolute top-4 left-4 text-4xl animate-pulse">🚨</div>}
+                    {territory.includes('t_med') && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-4xl">🚑</div>}
+                    {territory.includes('t_warehouse') && <div className="absolute top-4 right-4 text-4xl">🏗️</div>}
+                    <div className="text-6xl z-10 filter grayscale opacity-50">🏢</div>
                 </div>
 
                 <div className="flex flex-col gap-4 pb-10">
-                    {OFFICE_ITEMS.map(item => {
-                        const isOwned = office.includes(item.id);
+                    {TERRITORY_UPGRADES.map(item => {
+                        const isOwned = territory.includes(item.id);
                         const canBuy = coins >= item.cost && !isOwned;
                         return (
                             <div key={item.id} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${isOwned ? 'bg-blue-900/50 border-blue-500/50' : 'bg-slate-800 border-slate-600 shadow-lg'}`}>
@@ -570,7 +510,7 @@
                                         <div className="text-[11px] text-emerald-400 font-bold">{item.desc}</div>
                                     </div>
                                 </div>
-                                <button onClick={() => buyItem(item)} disabled={!canBuy && !isOwned} className={`px-4 py-2 rounded-full font-black text-sm min-w-[80px] ${isOwned ? 'bg-transparent text-blue-400 border border-blue-400' : canBuy ? 'bg-amber-500 text-slate-900 hover:scale-105 shadow-md active:scale-95' : 'bg-slate-700 text-slate-500'}`}>
+                                <button onClick={() => buyTerritory(item)} disabled={!canBuy && !isOwned} className={`px-4 py-2 rounded-full font-black text-sm min-w-[80px] ${isOwned ? 'bg-transparent text-blue-400 border border-blue-400' : canBuy ? 'bg-amber-500 text-slate-900 hover:scale-105 shadow-md active:scale-95' : 'bg-slate-700 text-slate-500'}`}>
                                     {isOwned ? 'КУПЛЕНО' : `${item.cost} 🪙`}
                                 </button>
                             </div>
@@ -581,24 +521,29 @@
         );
     }
 
-    if (showGallery) {
+    // МЕНЮ 3: АНАЛИТИКА / АТТЕСТАЦИЯ
+    if (gameState === 'analytics') {
         return (
-            <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-y-auto flex flex-col animate-fade-in">
-                <button onClick={() => setShowGallery(false)} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg mb-6 active:scale-95 transition-transform w-max">
-                    <span className="text-xl leading-none">←</span> Назад
-                </button>
-                <h2 className="text-2xl font-black text-white mb-6 tracking-wide">🎖️ Ачивки ({achievements.length}/5)</h2>
-                <div className="grid grid-cols-2 gap-4 pb-10">
-                    {ACHIEVEMENTS_LIST.map(ach => {
-                        const isUnlocked = achievements.includes(ach.id);
-                        return (
-                            <div key={ach.id} className={`p-4 rounded-xl border ${isUnlocked ? 'bg-slate-800 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-slate-900 border-slate-700 opacity-50'} flex flex-col items-center text-center transition-all`}>
-                                <div className="text-4xl mb-3">{isUnlocked ? ach.icon : '❓'}</div>
-                                <div className="font-bold text-[12px] text-white mb-1 uppercase tracking-wider leading-tight">{isUnlocked ? ach.title : 'Скрыто'}</div>
-                                {isUnlocked && <div className="text-[10px] text-slate-400 leading-tight mt-1">{ach.desc}</div>}
+            <div className="absolute inset-0 z-50 bg-[#0f172a] p-6 overflow-hidden flex flex-col animate-fade-in">
+                <button onClick={() => setGameState('gameover')} className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-full font-bold border border-slate-600 shadow-lg mb-6 active:scale-95 transition-transform w-max">← Назад</button>
+                <h2 className="text-2xl font-black text-rose-500 mb-2 uppercase tracking-wide">Журнал Нарушений</h2>
+                <p className="text-sm text-slate-400 mb-6">Разбор ваших фатальных и рискованных решений за эту смену.</p>
+                
+                <div className="flex-1 overflow-y-auto custom-scroll pb-10 flex flex-col gap-4">
+                    {actionLog.length === 0 ? (
+                        <div className="text-center text-emerald-500 font-bold mt-10">Идеальная работа! Нарушений ТБ не зафиксировано.</div>
+                    ) : (
+                        actionLog.map((log, i) => (
+                            <div key={i} className="bg-slate-800 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-lg">
+                                <div className="text-slate-300 text-sm mb-2 italic">"{log.text}"</div>
+                                <div className="text-white font-bold text-sm mb-2">Ваш выбор: <span className="text-rose-400">{log.choice}</span></div>
+                                <div className="bg-rose-950/50 p-2 rounded border border-rose-900">
+                                    <div className="text-[10px] text-rose-300 uppercase font-black mb-1">Справка СОТ:</div>
+                                    <div className="text-rose-200 text-xs">{log.rule}</div>
+                                </div>
                             </div>
-                        )
-                    })}
+                        ))
+                    )}
                 </div>
             </div>
         );
@@ -608,49 +553,33 @@
       return (
         <div id="gameover-container" className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative z-20 bg-[#0f172a] overflow-hidden">
             
-            {/* БЕЙДЖ ШЕРИНГА (Скрыт за основным фоном с помощью z-index: -10) */}
             <div id="share-badge-wrap" className="share-badge">
                 <div className="badge-logo">🛡️ СМЕНА</div>
                 <div className="badge-title">Удостоверение СОТ</div>
                 <div className="badge-sub">Официальный результат</div>
-                <div className="badge-days-label">Продержался:</div>
-                <div className="badge-days">{day}</div>
-                <div className="badge-days-label" style={{marginTop:'10px', marginBottom:'40px'}}>смен</div>
+                <div className="badge-days-label">Прошел смен:</div><div className="badge-days">{day}</div>
                 <div className="badge-rank">{getRank(day)}</div>
-                <div className="radar-box">
-                    <svg viewBox="0 0 100 100" width="300" height="300">
-                        <polygon points="50,10 84.6,70 15.4,70" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                        <polygon points="50,23.3 73.1,63.3 26.9,63.3" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                        <polygon points="50,36.6 61.5,56.6 38.5,56.6" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                        <line x1="50" y1="50" x2="50" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                        <line x1="50" y1="50" x2="84.6" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                        <line x1="50" y1="50" x2="15.4" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                        <polygon points={(function(){
-                            const tot = (playstyle.s + playstyle.b + playstyle.l) || 1;
-                            const ns = (playstyle.s/tot)*40, nb = (playstyle.b/tot)*40, nl = (playstyle.l/tot)*40;
-                            return `50,${50-ns} ${50+nb*0.866},${50+nb*0.5} ${50-nl*0.866},${50+nl*0.5}`;
-                        })()} fill="rgba(56, 189, 248, 0.6)" stroke="#38bdf8" strokeWidth="2" strokeLinejoin="round"/>
-                        <text x="50" y="5" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Правила</text>
-                        <text x="90" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Бюджет</text>
-                        <text x="10" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Люди</text>
-                    </svg>
-                </div>
-                <div className="badge-watermark">Психологический профиль руководителя СОТ</div>
+                <div className="badge-watermark">Интерактивная Аттестация</div>
             </div>
 
-            <div className="absolute inset-0 overflow-y-auto flex flex-col items-center p-6">
+            <div className="absolute inset-0 overflow-y-auto custom-scroll flex flex-col items-center p-6">
                 <div className="text-7xl mb-2 mt-10">💀</div>
-                <h1 className="text-4xl font-black text-rose-500 uppercase tracking-widest drop-shadow-lg mb-4">Игра окончена</h1>
+                <h1 className="text-3xl font-black text-rose-500 uppercase tracking-widest drop-shadow-lg mb-4">Смена Провалена</h1>
                 <div className="bg-slate-800 border-2 border-rose-900 p-4 rounded-3xl mb-4 max-w-sm w-full shadow-2xl">
                     <p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium leading-relaxed">{deathReason}</p>
                 </div>
-                <div className="text-5xl font-black text-blue-400 mb-2 drop-shadow-lg">{day} <span className="text-xl">смен</span></div>
+                <div className="text-5xl font-black text-blue-400 mb-2 drop-shadow-lg">{day} <span className="text-xl">карточек</span></div>
                 
-                {renderRadarChart()}
+                {/* КНОПКА АТТЕСТАЦИИ */}
+                {actionLog.length > 0 && (
+                    <button onClick={() => setGameState('analytics')} className="mt-4 bg-rose-900/50 border border-rose-500 text-rose-200 px-6 py-3 rounded-full font-bold shadow-lg animate-pulse">
+                        📋 Посмотреть ошибки ТБ
+                    </button>
+                )}
 
                 <div className="stamp">УВОЛЕН</div>
                 
-                <div className="flex flex-col w-full max-w-xs gap-3 mt-6 mb-10 pb-10">
+                <div className="flex flex-col w-full max-w-xs gap-3 mt-8 mb-10 pb-10">
                    <button onClick={shareResult} disabled={isSharing} className={`bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black py-4 w-full rounded-full border border-blue-400 shadow-[0_0_20px_rgba(37,99,235,0.4)] tracking-widest uppercase flex items-center justify-center gap-2 ${isSharing ? 'opacity-70' : 'active:scale-95 transition-transform'}`}>
                        {isSharing ? '⌛ Генерируем...' : '📸 Поделиться'}
                    </button>
@@ -667,21 +596,14 @@
           <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
           <div className="grid-overlay"></div><div className="noise"></div>
           
-          <div className="w-full flex justify-center items-end h-32 mb-4 relative">
-             <div className="text-8xl relative z-10 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)]">👷</div>
-             {office.includes('chair') && <div className="absolute right-10 bottom-0 text-5xl">💺</div>}
-             {office.includes('plant') && <div className="absolute left-10 bottom-0 text-5xl">🌿</div>}
-          </div>
-
+          <div className="text-8xl mb-4 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)] relative z-10 mt-10">👷</div>
           <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА</h1>
-          <p className="text-xl font-bold text-blue-400 mb-8 uppercase tracking-widest">Симулятор СОТ</p>
+          <p className="text-lg font-bold text-blue-400 mb-8 uppercase tracking-widest">Аттестация СОТ</p>
           
           <div className="w-full max-w-xs flex flex-col gap-3 relative z-50">
-              {hasSave && <button onClick={() => startGame(true)} className="bg-emerald-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(16,185,129,0.4)] uppercase active:scale-95 transition-transform">Продолжить</button>}
-              <button onClick={() => startGame(false)} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 active:scale-95 transition-transform">Новая игра</button>
+              <button onClick={() => setGameState('campaign_select')} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 active:scale-95 transition-transform">Начать Смену</button>
               <div className="flex gap-2">
-                  <button onClick={() => setShowOfficeUI(true)} className="flex-1 bg-slate-800 text-amber-400 font-bold py-3 rounded-full border border-slate-600 text-sm flex justify-center gap-2 items-center active:scale-95 transition-transform shadow-lg">🚪 Кабинет</button>
-                  <button onClick={() => setShowGallery(true)} className="flex-1 bg-slate-800 text-slate-300 font-bold py-3 rounded-full border border-slate-600 text-sm active:scale-95 transition-transform shadow-lg">🏆 Ачивки</button>
+                  <button onClick={() => setGameState('territory')} className="flex-1 bg-slate-800 text-amber-400 font-bold py-3 rounded-full border border-slate-600 text-sm flex justify-center gap-2 items-center active:scale-95 transition-transform shadow-lg">🗺️ База</button>
               </div>
           </div>
         </div>
@@ -694,16 +616,12 @@
       <div className={`flex flex-col h-[100dvh] overflow-hidden relative z-10 transition-all duration-1000 ${getTimeClass()} ${bgState === 'swipe-left' ? 'swipe-left' : bgState === 'swipe-right' ? 'swipe-right' : currentCard?.isUrgent ? 'bg-siren' : ''}`}
            onMouseMove={handlePointerMove} onTouchMove={handlePointerMove} onMouseUp={handlePointerUp} onTouchEnd={handlePointerUp} onMouseLeave={handlePointerUp}>
         
-        <div className="screen-crack"></div>
-        <div className="hazard-border"></div>
-        <div className="vignette-anger"></div>
-
+        <div className="screen-crack"></div><div className="hazard-border"></div><div className="vignette-anger"></div>
         <div className="mesh-container"><div className="blob blob-1 w-[500px] h-[500px] top-[-20%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[450px] h-[450px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '3s'}}></div></div>
         <div className="grid-overlay"></div><div className="noise"></div>
-        <div className={`tunnel-vision ${isCritical ? 'critical' : ''}`}></div>
 
         <button onClick={markMessagesRead} className="phone-btn">
-            📱 {unreadCount > 0 && <div className="phone-badge">{unreadCount}</div>}
+            📱 {messages.filter(m=>!m.read).length > 0 && <div className="phone-badge">{messages.filter(m=>!m.read).length}</div>}
         </button>
 
         {phoneState.open && (
@@ -713,45 +631,14 @@
                         <div className="font-black text-xl text-white">Смартфон СОТ</div>
                         <button onClick={() => setPhoneState({...phoneState, open: false})} className="text-slate-400 text-3xl font-bold hover:text-white active:scale-90 transition-transform">×</button>
                     </div>
-                    
                     <div className="flex bg-slate-800 p-2 gap-2 border-b border-slate-700">
-                        <button onClick={()=>setPhoneState({...phoneState, tab: 'chats'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'chats' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>💬 Чаты</button>
-                        <button onClick={()=>setPhoneState({...phoneState, tab: 'contacts'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'contacts' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>📇 Контакты</button>
+                        <button onClick={()=>setPhoneState({...phoneState, tab: 'chats'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'chats' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>💬 Чат ({activeCampaignId})</button>
                     </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-                        {phoneState.tab === 'chats' && messages.map(msg => (
-                            <div key={msg.id} className="bg-slate-700 p-4 rounded-2xl rounded-tl-none self-start max-w-[85%] border border-slate-600 relative shadow-md">
-                                <div className="text-blue-400 font-bold text-[10px] uppercase mb-1">{msg.from}</div>
-                                <div className="text-white text-sm">{msg.text}</div>
-                            </div>
-                        ))}
-                        
-                        {phoneState.tab === 'contacts' && (
-                            <>
-                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
-                                    <div>
-                                        <div className="text-white font-bold">В.В. (Директор)</div>
-                                        <div className="text-emerald-400 text-[10px] uppercase">Восстановит всё до 60%</div>
-                                    </div>
-                                    <button onClick={()=>useContact('vv')} disabled={contactsUsed.vv} className={`px-4 py-2 rounded-lg font-black text-sm active:scale-95 transition-transform ${!contactsUsed.vv ? 'bg-emerald-500 text-slate-900 shadow-md' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
-                                </div>
-                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
-                                    <div>
-                                        <div className="text-white font-bold">Бухгалтерия</div>
-                                        <div className="text-emerald-400 text-[10px] uppercase">+30 Бюджет, -20 Лояльность</div>
-                                    </div>
-                                    <button onClick={()=>useContact('buh')} disabled={contactsUsed.buh} className={`px-4 py-2 rounded-lg font-black text-sm active:scale-95 transition-transform ${!contactsUsed.buh ? 'bg-blue-500 text-white shadow-md' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
-                                </div>
-                                <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
-                                    <div>
-                                        <div className="text-white font-bold">Глава Профсоюза</div>
-                                        <div className="text-emerald-400 text-[10px] uppercase">+30 Лояльность, -20 Бюджет</div>
-                                    </div>
-                                    <button onClick={()=>useContact('prof')} disabled={contactsUsed.prof} className={`px-4 py-2 rounded-lg font-black text-sm active:scale-95 transition-transform ${!contactsUsed.prof ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
-                                </div>
-                            </>
-                        )}
+                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scroll">
+                        <div className="bg-slate-700 p-4 rounded-2xl rounded-tl-none self-start max-w-[85%] border border-slate-600 relative shadow-md">
+                            <div className="text-blue-400 font-bold text-[10px] uppercase mb-1">ДИРЕКТОР</div>
+                            <div className="text-white text-sm">Следи за показателями. Если упадет хоть один — уволю! И не забывай про регламенты, комиссия ГИТ не дремлет.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -773,7 +660,7 @@
         <div className={`glass-panel p-3 pb-4 rounded-b-[30px] shadow-2xl z-20`}>
             <div className="flex justify-between items-center mb-3 px-2">
                 <div className="flex items-center gap-2">
-                    <div className="font-black text-2xl text-white tracking-tighter drop-shadow-md">СМЕНА {day}</div>
+                    <div className="font-black text-2xl text-white tracking-tighter drop-shadow-md">КАРТА {day}/{deck.length + day}</div>
                 </div>
                 {currentCard?.isUrgent && !feedback && <div className="text-lg font-black text-rose-500 bg-rose-950 px-4 py-1 rounded-full border-2 border-rose-500 animate-pulse shadow-[0_0_15px_rgba(225,29,72,0.5)]">⏱️ 0:0{timeLeft}</div>}
             </div>
@@ -801,7 +688,7 @@
                         <div className="choice-indicator choice-right" style={{opacity: dragPos > 30 ? 1 : 0}}>{currentCard.rightChoice}</div>
                         
                         <div className={`relative z-10 bg-slate-50 rounded-t-[24px] p-4 flex flex-col items-center justify-center border-b h-[42%] ${currentCard.isUrgent?'bg-rose-50':''}`}>
-                            <div className="text-[4.5rem] mb-1 filter drop-shadow-2xl">{currentAvatar}</div>
+                            <div className="text-[4.5rem] mb-1 filter drop-shadow-2xl">{currentCard.avatar}</div>
                             <h2 className="text-xl font-black text-slate-800 tracking-tight text-center leading-tight">{currentCard.character}</h2>
                             <div className="mt-2 px-3 py-1 rounded-full font-black text-[10px] uppercase shadow-lg tracking-widest bg-blue-600 text-white">{currentCard.role}</div>
                         </div>
