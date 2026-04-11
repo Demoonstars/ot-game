@@ -1,6 +1,6 @@
 /* =========================================================
    ФАЙЛ: js/CardEngine.jsx
-   Движок свайпов (ПУЛЕНЕПРОБИВАЕМЫЙ: Глобальные слушатели)
+   Движок свайпов (ИСПРАВЛЕННЫЙ БАГ ЗАВИСАНИЯ И КНОПОК)
 ========================================================= */
 
 const { useRef, useState, useEffect, useImperativeHandle } = React;
@@ -34,12 +34,18 @@ const TypewriterText = ({ text }) => {
 
 const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     const cardRef = useRef(null);
-    // Храним всю математику в useRef, чтобы не вызывать ререндеры React
     const state = useRef({ x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null });
+    
+    // ХРАНИЛИЩЕ СВЕЖИХ ДАННЫХ (Защита от зависания колоды)
+    const latestProps = useRef({ card, onSwipe, isBurning });
+    useEffect(() => {
+        latestProps.current = { card, onSwipe, isBurning };
+    }, [card, onSwipe, isBurning]);
 
     const SWIPE_THRESHOLD = 120; 
+    const SPRING_TENSION = 0.15; 
+    const FRICTION = 0.85;       
 
-    // Эмоции персонажа при оттягивании
     const getReactionEmoji = (effects, defaultAvatar) => {
         if (!effects) return defaultAvatar;
         if (effects.safety < -15 || effects.budget < -20) return "😰"; 
@@ -49,9 +55,10 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         return defaultAvatar; 
     };
 
-    // Прямая инъекция в DOM для приборов (без лагов)
     const updatePredictions = (x) => {
-        if (!card) return;
+        const currentCard = latestProps.current.card;
+        if (!currentCard) return;
+        
         const absX = Math.abs(x);
         const intensity = Math.min(absX / SWIPE_THRESHOLD, 1); 
         
@@ -65,24 +72,22 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         const avatarUI = document.getElementById('card-avatar');
         const cardWrapUI = document.getElementById('card-wrapper');
 
-        // Если карта в центре - сбрасываем тревогу
         if (absX < 30) {
             if (state.current.currentPrediction !== null) {
                 safetyUI?.classList.remove('gauge-predict-danger'); 
                 budgetUI?.classList.remove('lcd-predict-danger'); 
                 loyaltyUI?.classList.remove('gauge-predict-danger');
-                if (avatarUI) avatarUI.innerText = card.avatar;
+                if (avatarUI) avatarUI.innerText = currentCard.avatar;
                 if (cardWrapUI) cardWrapUI.classList.remove('avatar-predict');
                 state.current.currentPrediction = null;
             }
             return;
         }
 
-        // Если потянули - предсказываем последствия
         const dir = x < 0 ? 'left' : 'right';
         if (state.current.currentPrediction !== dir) {
             state.current.currentPrediction = dir;
-            const effects = dir === 'left' ? card.onLeft : card.onRight;
+            const effects = dir === 'left' ? currentCard.onLeft : currentCard.onRight;
             
             safetyUI?.classList.remove('gauge-predict-danger'); 
             budgetUI?.classList.remove('lcd-predict-danger'); 
@@ -92,7 +97,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
             if (effects.budget < -15) budgetUI?.classList.add('lcd-predict-danger');
             if (effects.loyalty < -15) loyaltyUI?.classList.add('gauge-predict-danger');
 
-            if (avatarUI) avatarUI.innerText = getReactionEmoji(effects, card.avatar);
+            if (avatarUI) avatarUI.innerText = getReactionEmoji(effects, currentCard.avatar);
             if (cardWrapUI) cardWrapUI.classList.add('avatar-predict');
             
             if ((effects.safety < -15 || effects.budget < -15 || effects.loyalty < -15) && window.vibrate) {
@@ -101,14 +106,11 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     };
 
-    // Применение трансформаций и эффектов к DOM
     const updateTransform = () => {
         if (!cardRef.current) return;
         const { x, y, rx, ry } = state.current;
         
-        // Поворот карточки при свайпе (Tinder эффект)
         const dragRotate = x * 0.05; 
-        
         cardRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) rotateZ(${dragRotate}deg) rotateY(${ry}deg) rotateX(${rx}deg)`;
 
         const leftInd = cardRef.current.querySelector('.choice-left'); 
@@ -116,7 +118,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         if (leftInd) leftInd.style.opacity = x < -30 ? Math.min((Math.abs(x)-30)/50, 1) : 0;
         if (rightInd) rightInd.style.opacity = x > 30 ? Math.min((Math.abs(x)-30)/50, 1) : 0;
 
-        // Проявление нижней карты
         const nextCardDOM = document.getElementById('next-card-element');
         if (nextCardDOM) {
             const swipeProgress = Math.min(Math.abs(x) / SWIPE_THRESHOLD, 1);
@@ -126,18 +127,30 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         updatePredictions(x);
     };
 
-    // ==========================================
-    // ЛОГИКА ГЛОБАЛЬНОГО ДРАГА (ПУЛЕНЕПРОБИВАЕМАЯ)
-    // ==========================================
+    const springLoop = () => {
+        if (state.current.isDragging || state.current.isFlying) return;
+        state.current.x += (0 - state.current.x) * SPRING_TENSION;
+        state.current.y += (0 - state.current.y) * SPRING_TENSION;
+        state.current.rx *= FRICTION; 
+        state.current.ry *= FRICTION;
+        updateTransform();
+
+        if (Math.abs(state.current.x) > 0.5 || Math.abs(state.current.ry) > 0.5) {
+            requestAnimationFrame(springLoop);
+        } else {
+            state.current.x = 0; state.current.y = 0; state.current.rx = 0; state.current.ry = 0;
+            updateTransform();
+        }
+    };
+
+    // ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ ДЛЯ ТЕЛЕФОНОВ
     useEffect(() => {
         const handleMove = (e) => {
             if (!state.current.isDragging || state.current.isFlying) return;
             
-            // Поддержка и мыши, и тачскрина
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-            // Натяжение резинкой (умножаем на 0.8)
             state.current.x = (clientX - state.current.startX) * 0.8; 
             state.current.y = (clientY - state.current.startY) * 0.8;
             updateTransform();
@@ -152,7 +165,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
             } else if (state.current.x < -SWIPE_THRESHOLD) {
                 triggerSwipe('left');
             } else {
-                // Если не дотянули - возвращаем в центр с красивой анимацией
                 if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(0);
                 
                 state.current.x = 0; 
@@ -167,23 +179,24 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
             }
         };
 
-        // Вешаем слушатели на ВЕСЬ экран
+        // Вешаем слушатели на окно, включая touchcancel (решает проблему блокировки кнопок)
         window.addEventListener('mousemove', handleMove, { passive: false });
         window.addEventListener('mouseup', handleUp);
         window.addEventListener('touchmove', handleMove, { passive: false });
         window.addEventListener('touchend', handleUp);
+        window.addEventListener('touchcancel', handleUp);
 
         return () => {
             window.removeEventListener('mousemove', handleMove);
             window.removeEventListener('mouseup', handleUp);
             window.removeEventListener('touchmove', handleMove);
             window.removeEventListener('touchend', handleUp);
+            window.removeEventListener('touchcancel', handleUp);
         };
     }, []);
 
-    // Старт драга (вешается на саму карточку)
     const handleDown = (e) => {
-        if (isBurning || state.current.isFlying) return;
+        if (latestProps.current.isBurning || state.current.isFlying) return;
         state.current.isDragging = true;
         
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -192,13 +205,11 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         state.current.startX = clientX - state.current.x;
         state.current.startY = clientY - state.current.y;
         
-        // Выключаем CSS-анимации, чтобы карта мгновенно прилипла к пальцу
         if (cardRef.current) {
             cardRef.current.style.transition = 'none';
         }
     };
 
-    // Функция отлета карты
     const triggerSwipe = (direction) => {
         state.current.isFlying = true;
         if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(0); 
@@ -211,16 +222,15 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
         updateTransform(); 
         
-        // Ждем пока карта улетит, затем вызываем игровую логику
         setTimeout(() => {
-            onSwipe(direction);
+            // ИСПОЛЬЗУЕМ СВЕЖИЙ КОЛЛБЭК!
+            latestProps.current.onSwipe(direction);
         }, 300);
     };
 
-    // Гироскоп (Параллакс)
     useEffect(() => {
         const handleOrientation = (e) => {
-            if (state.current.isDragging || state.current.isFlying || isBurning) return;
+            if (state.current.isDragging || state.current.isFlying || latestProps.current.isBurning) return;
             state.current.ry = Math.max(-15, Math.min(15, e.gamma ? e.gamma / 2 : 0)); 
             state.current.rx = Math.max(-15, Math.min(15, e.beta ? (e.beta - 45) / 2 : 0));
             
@@ -231,9 +241,8 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         };
         window.addEventListener('deviceorientation', handleOrientation);
         return () => window.removeEventListener('deviceorientation', handleOrientation);
-    }, [isBurning]);
+    }, []);
 
-    // Сброс при новой карте
     useEffect(() => {
         state.current = { x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null };
         if(cardRef.current) {
@@ -244,10 +253,10 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         if (nextCardDOM) nextCardDOM.style.opacity = 0;
     }, [card]);
 
-    // Экспорт функции свайпа для нижних кнопок "Разрешить/Отказать"
+    // Кнопки обращаются сюда
     useImperativeHandle(card?.ref, () => ({
         forceSwipe: (dir) => {
-            if (!state.current.isDragging && !state.current.isFlying && !isBurning) triggerSwipe(dir);
+            if (!state.current.isDragging && !state.current.isFlying && !latestProps.current.isBurning) triggerSwipe(dir);
         }
     }));
 
@@ -255,15 +264,12 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
 
     return (
         <div className="card-stack">
-            
-            {/* НИЖНЯЯ КАРТА */}
             {nextCard && (
                 <div id="next-card-element" className="next-card flex flex-col items-center justify-center opacity-0" style={{willChange: 'opacity'}}>
                     <div className="text-[6rem] opacity-20 grayscale">{nextCard.avatar}</div>
                 </div>
             )}
             
-            {/* ТЕКУЩАЯ КАРТА */}
             <div ref={cardRef} className={`swipe-card cursor-grab active:cursor-grabbing ${card.isUrgent?'urgent':''} ${isBurning ? 'animate-burn' : ''}`}
                 onMouseDown={handleDown}
                 onTouchStart={handleDown}
