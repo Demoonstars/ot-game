@@ -1,9 +1,35 @@
 /* =========================================================
    ФАЙЛ: js/App.jsx
-   Главное Ядро Игры (Интеграция Push-уведомлений и Чата)
+   Главное Ядро Игры (Частицы, Тряска экрана)
 ========================================================= */
 
 const { useState, useEffect, useRef } = React;
+
+// --- КОМПОНЕНТ ДИНАМИЧЕСКИХ ЧАСТИЦ ---
+const ParticleSystem = ({ safety }) => {
+    const isDanger = safety < 30;
+    const count = isDanger ? 35 : 15;
+    
+    // Генерируем частицы один раз при смене состояния
+    const particles = Array.from({ length: count }).map((_, i) => {
+        const size = Math.random() * (isDanger ? 6 : 12) + 3;
+        const left = Math.random() * 100;
+        const delay = Math.random() * -15; // Рассинхрон
+        const duration = Math.random() * 5 + (isDanger ? 2 : 12);
+        
+        return (
+            <div key={i} 
+                 className={isDanger ? 'ember' : 'dust'} 
+                 style={{
+                     width: `${size}px`, height: `${size}px`, left: `${left}%`, 
+                     '--d': `${duration}s`, animationDelay: `${delay}s`
+                 }} 
+            />
+        );
+    });
+    
+    return <div className="particle-layer">{particles}</div>;
+};
 
 /* --- ВЬЮШКИ: ДИЕГЕТИЧЕСКИЙ ИНТЕРФЕЙС --- */
 const AnalogGauge = ({ value, icon, label, id }) => {
@@ -83,18 +109,17 @@ function Game() {
 
   const [isSharing, setIsSharing] = useState(false); 
   const [isBurning, setIsBurning] = useState(false);
+  const [isShaking, setIsShaking] = useState(false); // Стейт для тряски экрана
   
-  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ЧАТА ---
-  const [toast, setToast] = useState(null); // Всплывающее уведомление
-  const [typingContact, setTypingContact] = useState(null); // Имя того, кто печатает
+  const [toast, setToast] = useState(null); 
+  const [typingContact, setTypingContact] = useState(null); 
   const [messages, setMessages] = useState([
-      { id: 1, from: "Юлия Борисовна", text: "Антон, завтра выездная комиссия ГИТ. Проверь журналы инструктажей, чтобы без косяков! Штрафы платить не будем.", read: false }
+      { id: 1, from: "Юлия Борисовна", text: "Завтра выездная комиссия ГИТ. Проверь журналы инструктажей, чтобы без косяков! Штрафы платить не будем.", read: false }
   ]);
   
   const timerRef = useRef(null);
   const engineRef = useRef();
 
-  // ЗАГРУЗКА СОХРАНЕНИЙ ИЗ БРАУЗЕРА
   useEffect(() => {
       try { 
           setAchievements(JSON.parse(localStorage.getItem('smena_achievements') || '[]')); 
@@ -103,7 +128,6 @@ function Game() {
       } catch(e) {}
   }, []);
 
-  // ЭФФЕКТЫ ФОНА
   useEffect(() => {
       if (gameState === 'playing') {
           if (stats.budget < 30) document.body.classList.add('critical-budget'); else document.body.classList.remove('critical-budget');
@@ -112,38 +136,25 @@ function Game() {
       } else document.body.className = ''; 
   }, [stats, gameState]);
 
-  // --- ИНТЕГРАЦИЯ ЖИВОГО ЧАТА ---
   useEffect(() => {
       if (gameState === 'playing' && window.ChatEngine) {
           const handleChatEvent = (event, data) => {
-              if (event === 'typing') {
-                  setTypingContact(data.from); // Показываем, что кто-то печатает
-              } 
+              if (event === 'typing') { setTypingContact(data.from); } 
               else if (event === 'message') {
                   setTypingContact(null);
                   setMessages(prev => [data, ...prev]);
-                  
-                  // Показываем Push-уведомление
                   setToast({ from: data.from, text: data.text });
                   
-                  // Проигрываем звук (с дакингом) и вибрируем
                   if (window.AudioEngine) window.AudioEngine.msg();
                   if (window.vibrate) window.vibrate([100, 50]);
                   
                   setPhoneState(prev => ({ ...prev, ringing: true }));
-                  
-                  // Прячем уведомление через 4 секунды
                   setTimeout(() => setToast(null), 4000);
               }
           };
-          
           window.ChatEngine.subscribe(handleChatEvent);
           window.ChatEngine.start();
-          
-          return () => {
-              window.ChatEngine.unsubscribe(handleChatEvent);
-              window.ChatEngine.stop();
-          };
+          return () => { window.ChatEngine.unsubscribe(handleChatEvent); window.ChatEngine.stop(); };
       } else {
           if (window.ChatEngine) window.ChatEngine.stop();
       }
@@ -164,19 +175,11 @@ function Game() {
       localStorage.setItem('smena_coins', newCoins); 
   };
 
-  const getRank = (days) => { 
-      if (days <= 5) return "Стажер с блокнотом"; 
-      if (days <= 10) return "Младший инспектор"; 
-      if (days <= 15) return "Гроза нарушителей"; 
-      if (days <= 25) return "Эксперт по ТБ"; 
-      return "Бог Охраны Труда"; 
-  };
-
   const startMegaShift = () => {
       if (window.AudioEngine) window.AudioEngine.init(); 
       if (window.vibrate) window.vibrate(50); 
       
-      setFeedback(null); setIsBurning(false); setIsVictory(false); 
+      setFeedback(null); setIsBurning(false); setIsVictory(false); setIsShaking(false);
       setPhoneState({ open: false, tab: 'chats', ringing: false }); 
       setToast(null); setTypingContact(null);
       setActionLog([]); setHasWarnedLowStats(false);
@@ -233,8 +236,11 @@ function Game() {
     
     setPlaystyle(prev => ({ s: prev.s + (effects.safety > 0 ? effects.safety : 0), b: prev.b + (effects.budget > 0 ? effects.budget : 0), l: prev.l + (effects.loyalty > 0 ? effects.loyalty : 0) }));
 
-    if (effects.safety < -15 || effects.budget < -15) {
+    // ТРЯСКА ЭКРАНА ПРИ ОШИБКЕ
+    if (effects.safety <= -20 || effects.budget <= -20) {
         if (window.AudioEngine) window.AudioEngine.error(); 
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 400); // Выключаем через 0.4 сек
     }
 
     const newFlags = { ...flags };
@@ -300,13 +306,12 @@ function Game() {
 
   const openPhone = () => {
       setMessages(messages.map(m => ({...m, read: true})));
-      setToast(null); // Скрываем баннер при открытии телефона
+      setToast(null); 
       setPhoneState({ open: true, tab: 'chats', ringing: false });
   };
 
   const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 15 ? 'theme-day' : day <= 25 ? 'theme-evening' : 'theme-night';
 
-  /* --- РЕНДЕР: ДОСТИЖЕНИЯ --- */
   if (gameState === 'achievements') {
       return (
           <div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
@@ -327,7 +332,6 @@ function Game() {
       )
   }
 
-  /* --- РЕНДЕР: КАБИНЕТ СОТ --- */
   if (gameState === 'office') {
       return (
           <div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
@@ -360,7 +364,6 @@ function Game() {
       )
   }
 
-  /* --- РЕНДЕР: МЕНЮ --- */
   if (gameState === 'start') {
     return (
       <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative theme-morning">
@@ -414,16 +417,19 @@ function Game() {
     );
   }
 
-  /* --- РЕНДЕР: ИГРОВОЙ ПРОЦЕСС --- */
+  /* --- ИГРОВОЙ ЭКРАН (С ТРЯСКОЙ И ЧАСТИЦАМИ) --- */
   return (
-    <div className={`flex flex-col h-[100dvh] overflow-hidden relative z-10 transition-all duration-1000 ${getTimeClass()}`}>
+    <div className={`flex flex-col h-[100dvh] overflow-hidden relative z-10 transition-colors duration-1000 ${getTimeClass()} ${isShaking ? 'animate-shake-hard' : ''}`}>
+      
+      {/* СЛОЙ ЧАСТИЦ */}
+      <ParticleSystem safety={stats.safety} />
+      
       <div className="hazard-border"></div><div className="vignette-anger"></div>
       <div className="mesh-container"><div className="blob blob-1 w-[500px] h-[500px] top-[-20%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[450px] h-[450px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '3s'}}></div></div>
       <div className="grid-overlay"></div>
 
-      {/* --- PUSH-УВЕДОМЛЕНИЕ --- */}
       {toast && (
-          <div onClick={openPhone} className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-slate-800/95 backdrop-blur-xl border border-slate-600 shadow-2xl rounded-2xl p-4 z-[100] cursor-pointer transition-all duration-300 transform translate-y-0 opacity-100 flex items-start gap-3 active:scale-95">
+          <div onClick={openPhone} className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-slate-800/95 backdrop-blur-xl border border-slate-600 shadow-2xl rounded-2xl p-4 z-[100] cursor-pointer transition-all duration-300 flex items-start gap-3 active:scale-95">
               <div className="w-10 h-10 min-w-[40px] bg-blue-600 rounded-full flex items-center justify-center text-xl shadow-inner">💬</div>
               <div className="flex-1 overflow-hidden">
                   <div className="text-white font-bold text-sm truncate">{toast.from}</div>
@@ -432,7 +438,6 @@ function Game() {
           </div>
       )}
 
-      {/* МИНИ-ТЕЛЕФОН СПРАВА */}
       <button onClick={openPhone} className={`physical-phone ${phoneState.ringing ? 'ringing' : ''}`}>
           <div className="phone-screen-mini">
               <span className="text-[10px] text-slate-500 absolute bottom-1 font-bold">09:41</span>
@@ -440,7 +445,6 @@ function Game() {
           </div>
       </button>
 
-      {/* ИНТЕРФЕЙС ИОС-ТЕЛЕФОНА */}
       {phoneState.open && (
           <div className="absolute inset-0 z-[150] bg-slate-900/90 backdrop-blur-md flex flex-col p-4 animate-slideUp">
               <div className="ios-screen">
@@ -456,8 +460,6 @@ function Game() {
                   </div>
                   
                   <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scroll relative bg-[#0f172a]">
-                      
-                      {/* КОНТАКТЫ */}
                       {phoneState.tab === 'contacts' && (
                           <>
                               <div className="p-3 bg-slate-800 rounded-xl border border-slate-700 flex justify-between items-center shadow-md">
@@ -475,7 +477,6 @@ function Game() {
                           </>
                       )}
 
-                      {/* СООБЩЕНИЯ */}
                       {phoneState.tab === 'chats' && (
                           <>
                               {messages.map(msg => (
@@ -485,7 +486,6 @@ function Game() {
                                   </div>
                               ))}
                               
-                              {/* АНИМАЦИЯ ПЕЧАТАЮЩЕГО ЧЕЛОВЕКА */}
                               {typingContact && (
                                   <div className="chat-bubble-received !w-20 animate-pulse flex flex-col">
                                       <div className="text-slate-400 font-bold text-[9px] uppercase mb-1 truncate">{typingContact}</div>
@@ -511,7 +511,6 @@ function Game() {
           </div>
       )}
 
-      {/* ПАНЕЛЬ ПРИБОРОВ */}
       <div className={`dashboard-panel`}>
           <div className="flex justify-between items-center mb-2 px-2">
               <div className="font-black text-lg text-slate-400 tracking-widest uppercase">СМЕНА {day}</div>
