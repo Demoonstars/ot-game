@@ -1,78 +1,307 @@
 /* =========================================================
-   ФАЙЛ: js/chatEngine.js
-   AAA-Движок чата (Эффект "печатает", Push-система)
+   ФАЙЛ: js/CardEngine.jsx
+   AAA-Движок: Оптимизация под ВСЕ мобилки + Компактный UI
 ========================================================= */
 
-const ChatEngine = (() => {
-    let timer = null;
-    let typingTimer = null;
-    let messageCounter = 2; // ID 1 занят Юлией Борисовной
-    let subscribers = []; // Подписчики на события (React)
+const { useRef, useState, useEffect, useImperativeHandle } = React;
 
-    const senders = [
-        "Охранник КПП", "Сантехник Михалыч", "Главный инженер", 
-        "Старшая Горничная", "Шеф-повар", "Бухгалтерия", 
-        "Снабжение", "Айтишник Влад", "Секретарь Леночка"
-    ];
+const TypewriterText = ({ text }) => {
+    const [displayed, setDisplayed] = useState("");
+    
+    useEffect(() => {
+        setDisplayed(""); 
+        let i = 0;
+        const timer = setInterval(() => { 
+            setDisplayed(text.slice(0, i + 1)); 
+            i++; 
+            if (i >= text.length) clearInterval(timer); 
+        }, 15);
+        return () => clearInterval(timer);
+    }, [text]);
+    
+    const highlightWords = (str) => {
+        const words = ["убью", "штраф", "срочно", "пожар", "вскрыть", "уволю", "быстро", "скорую", "кровь", "эвакуация", "травма", "смерть", "упал", "взрыв", "катастрофа", "ампутация"];
+        let res = str;
+        words.forEach(w => { 
+            const regex = new RegExp(`(${w})`, 'gi'); 
+            res = res.replace(regex, '<span class="text-rose-600 font-black animate-shake inline-block drop-shadow-md">$&</span>'); 
+        });
+        return { __html: res };
+    };
+    
+    // УМЕНЬШИЛ ШРИФТ И ИНТЕРВАЛЫ: text-[1.05rem] leading-snug
+    return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-800 text-[1.05rem] font-semibold text-center leading-snug relative z-10 pointer-events-none" />;
+};
 
-    const texts = [
-        "Тут Михалыч опять без страховки на крышу лезет... Сними его оттуда!",
-        "А когда новую партию перчаток выдадут? Мои уже до дыр стерлись.",
-        "В подвале вода капает прямо на электрощиток. Вырубаем или само просохнет?",
-        "Кто-то огнетушителем пожарную дверь подпер. Опять штраф получим.",
-        "Проверь аптечку в горячем цеху, там бинты кончились и перекись кто-то вылил.",
-        "Гости жалуются на жуткий запах краски на 4 этаже. Подрядчики говорят, что краска ЭКО.",
-        "А плановый инструктаж точно сегодня? Может на пятницу перенесем, а то у нас банкет?",
-        "У нас датчик дыма на кухне опять пищит просто так. Я его скотчем заклеил пока.",
-        "Можно мне отгул на завтра? Я палец дверью прищемил, травму оформлять не хочу...",
-        "Влад из IT провода поперек коридора кинул. Я уже два раза споткнулась!",
-        "На заднем дворе кто-то курил возле газовых баллонов. Я не разглядел кто.",
-        "Зарплату задерживают на день. Народ бунтует, говорят, работать не выйдут."
-    ];
+const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
+    const cardRef = useRef(null);
+    const nextCardRef = useRef(null);
+    const glareRef = useRef(null);
+    
+    const state = useRef({ x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null });
 
-    // Система подписок для связи с React
-    const subscribe = (callback) => { subscribers.push(callback); };
-    const unsubscribe = (callback) => { subscribers = subscribers.filter(cb => cb !== callback); };
-    const notify = (event, data) => { subscribers.forEach(cb => cb(event, data)); };
+    const latestProps = useRef({ card, onSwipe, isBurning });
+    useEffect(() => { latestProps.current = { card, onSwipe, isBurning }; }, [card, onSwipe, isBurning]);
 
-    const start = () => {
-        stop(); // Сброс старых таймеров
+    const SWIPE_THRESHOLD = 130; 
+    const SPRING_TENSION = 0.12; 
+    const FRICTION = 0.85;       
+
+    const getReactionEmoji = (effects, defaultAvatar) => {
+        if (!effects) return defaultAvatar;
+        if (effects.safety < -15 || effects.budget < -20) return "😰"; 
+        if (effects.loyalty < -15) return "🤬"; 
+        if (effects.budget > 15 && effects.safety < 0) return "😏"; 
+        if (effects.safety > 15 || effects.loyalty > 15) return "😇"; 
+        return defaultAvatar; 
+    };
+
+    const updatePredictions = (x) => {
+        const currentCard = latestProps.current.card;
+        if (!currentCard) return;
         
-        const scheduleNext = () => {
-            // Сообщения приходят рандомно каждые 15 - 35 секунд
-            const delay = Math.random() * 20000 + 15000; 
+        const absX = Math.abs(x);
+        const intensity = Math.min(absX / SWIPE_THRESHOLD, 1); 
+        
+        if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(intensity);
+
+        const safetyUI = document.getElementById('gauge-safety');
+        const budgetUI = document.getElementById('lcd-budget');
+        const loyaltyUI = document.getElementById('bar-loyalty');
+        const avatarUI = document.getElementById('card-avatar');
+        const cardWrapUI = document.getElementById('card-wrapper');
+
+        if (absX < 30) {
+            if (state.current.currentPrediction !== null) {
+                safetyUI?.classList.remove('gauge-predict-danger'); 
+                budgetUI?.classList.remove('lcd-predict-danger'); 
+                loyaltyUI?.classList.remove('gauge-predict-danger');
+                if (avatarUI) avatarUI.innerText = currentCard.avatar;
+                if (cardWrapUI) cardWrapUI.classList.remove('avatar-predict');
+                state.current.currentPrediction = null;
+            }
+            return;
+        }
+
+        const dir = x < 0 ? 'left' : 'right';
+        if (state.current.currentPrediction !== dir) {
+            state.current.currentPrediction = dir;
+            const effects = dir === 'left' ? currentCard.onLeft : currentCard.onRight;
             
-            timer = setTimeout(() => {
-                const from = senders[Math.floor(Math.random() * senders.length)];
-                const text = texts[Math.floor(Math.random() * texts.length)];
-                
-                // 1. Отправляем событие "Печатает..."
-                notify('typing', { from });
+            safetyUI?.classList.remove('gauge-predict-danger'); 
+            budgetUI?.classList.remove('lcd-predict-danger'); 
+            loyaltyUI?.classList.remove('gauge-predict-danger');
+            
+            if (effects.safety < -15) safetyUI?.classList.add('gauge-predict-danger');
+            if (effects.budget < -15) budgetUI?.classList.add('lcd-predict-danger');
+            if (effects.loyalty < -15) loyaltyUI?.classList.add('gauge-predict-danger');
 
-                // 2. Ждем 3 секунды и отправляем само сообщение
-                typingTimer = setTimeout(() => {
-                    notify('message', { 
-                        id: messageCounter++, 
-                        from: from, 
-                        text: text, 
-                        read: false 
-                    });
-                    
-                    scheduleNext(); // Запускаем цикл заново
-                }, 3000);
+            if (avatarUI) avatarUI.innerText = getReactionEmoji(effects, currentCard.avatar);
+            if (cardWrapUI) cardWrapUI.classList.add('avatar-predict');
+            
+            if ((effects.safety < -15 || effects.budget < -15 || effects.loyalty < -15) && window.vibrate) {
+                window.vibrate(15);
+            }
+        }
+    };
 
-            }, delay);
-        };
+    const updateTransform = () => {
+        if (!cardRef.current) return;
+        const { x, y, rx, ry, isDragging } = state.current;
         
-        scheduleNext();
+        const dragRotate = x * 0.06; 
+        const scale = isDragging ? 1.03 : 1; 
+        cardRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotateZ(${dragRotate}deg) rotateY(${ry}deg) rotateX(${rx}deg)`;
+        
+        cardRef.current.style.boxShadow = isDragging 
+            ? `0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.2) inset` 
+            : `0 30px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.1) inset`;
+
+        if (glareRef.current) {
+            const intensity = Math.min(Math.abs(x)/150 + Math.abs(ry)/30, 0.8);
+            glareRef.current.style.opacity = intensity;
+            glareRef.current.style.background = `linear-gradient(${105 + x * 0.5 + ry * 2}deg, rgba(255,255,255,0) 10%, rgba(255,215,0, 0.3) 30%, rgba(255,20,147, 0.3) 50%, rgba(0,255,255, 0.3) 70%, rgba(255,255,255,0) 90%)`;
+        }
+
+        const leftInd = cardRef.current.querySelector('.choice-left'); 
+        const rightInd = cardRef.current.querySelector('.choice-right');
+        if (leftInd) leftInd.style.opacity = x < -30 ? Math.min((Math.abs(x)-30)/60, 1) : 0;
+        if (rightInd) rightInd.style.opacity = x > 30 ? Math.min((Math.abs(x)-30)/60, 1) : 0;
+
+        if (nextCardRef.current) {
+            const swipeProgress = Math.min(Math.abs(x) / SWIPE_THRESHOLD, 1);
+            const nextScale = 0.9 + (swipeProgress * 0.1); 
+            nextCardRef.current.style.transform = `scale(${nextScale}) translateY(${25 - (swipeProgress * 25)}px)`;
+            nextCardRef.current.style.opacity = state.current.isFlying ? 1 : swipeProgress;
+        }
+
+        updatePredictions(x);
     };
 
-    const stop = () => {
-        clearTimeout(timer);
-        clearTimeout(typingTimer);
+    const springLoop = () => {
+        if (state.current.isDragging || state.current.isFlying) return;
+        state.current.x += (0 - state.current.x) * SPRING_TENSION;
+        state.current.y += (0 - state.current.y) * SPRING_TENSION;
+        state.current.rx *= FRICTION; 
+        state.current.ry *= FRICTION;
+        updateTransform();
+
+        if (Math.abs(state.current.x) > 0.5 || Math.abs(state.current.ry) > 0.5) {
+            requestAnimationFrame(springLoop);
+        } else {
+            state.current.x = 0; state.current.y = 0; state.current.rx = 0; state.current.ry = 0;
+            updateTransform();
+        }
     };
 
-    return { start, stop, subscribe, unsubscribe };
-})();
+    // ==========================================
+    // ИДЕАЛЬНЫЕ POINTER EVENTS (ЗАЩИТА ОТ ЗАВИСАНИЙ)
+    // ==========================================
+    useEffect(() => {
+        const handlePointerMove = (e) => {
+            if (latestProps.current.isBurning || state.current.isFlying) return;
+            
+            // Параллакс
+            if (!state.current.isDragging && e.pointerType === 'mouse') {
+                const rect = cardRef.current?.getBoundingClientRect();
+                if (rect) {
+                    state.current.rx = -((e.clientY - rect.top - rect.height/2) / rect.height) * 15; 
+                    state.current.ry = ((e.clientX - rect.left - rect.width/2) / rect.width) * 15;
+                    if (cardRef.current) cardRef.current.style.transition = 'transform 0.1s linear';
+                    updateTransform(); 
+                }
+                return;
+            }
+            
+            if (!state.current.isDragging) return;
+            
+            // Прямое чтение координат (без путаницы touch/mouse)
+            state.current.x = (e.clientX - state.current.startX) * 0.85; 
+            state.current.y = (e.clientY - state.current.startY) * 0.85;
+            updateTransform();
+        };
 
-window.ChatEngine = ChatEngine;
+        const handlePointerUp = (e) => {
+            if (!state.current.isDragging) return;
+            state.current.isDragging = false;
+
+            if (state.current.x > SWIPE_THRESHOLD) triggerSwipe('right');
+            else if (state.current.x < -SWIPE_THRESHOLD) triggerSwipe('left');
+            else {
+                if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(0);
+                if (cardRef.current) cardRef.current.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease';
+                requestAnimationFrame(springLoop); 
+            }
+        };
+
+        // Слушаем ТОЛЬКО Pointer Events на уровне окна
+        window.addEventListener('pointermove', handlePointerMove, { passive: false });
+        window.addEventListener('pointerup', handlePointerUp);
+        window.addEventListener('pointercancel', handlePointerUp);
+
+        return () => {
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+            window.removeEventListener('pointercancel', handlePointerUp);
+        };
+    }, []);
+
+    const handlePointerDown = (e) => {
+        if (latestProps.current.isBurning || state.current.isFlying) return;
+        
+        try { e.target.setPointerCapture(e.pointerId); } catch(err) {}
+        
+        state.current.isDragging = true;
+        state.current.startX = e.clientX - state.current.x;
+        state.current.startY = e.clientY - state.current.y;
+        
+        if (cardRef.current) cardRef.current.style.transition = 'none';
+        updateTransform(); 
+    };
+
+    const triggerSwipe = (direction) => {
+        state.current.isFlying = true;
+        if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(0); 
+        if (window.AudioEngine && window.AudioEngine.swipe) window.AudioEngine.swipe(direction); 
+        
+        state.current.x = direction === 'right' ? window.innerWidth + 100 : -window.innerWidth - 100; 
+        state.current.y += 150; 
+        
+        if (cardRef.current) cardRef.current.style.transition = 'transform 0.35s ease-in, opacity 0.3s';
+        updateTransform(); 
+        
+        setTimeout(() => { latestProps.current.onSwipe(direction); }, 350);
+    };
+
+    useEffect(() => {
+        const handleOrientation = (e) => {
+            if (state.current.isDragging || state.current.isFlying || latestProps.current.isBurning) return;
+            state.current.ry = Math.max(-15, Math.min(15, e.gamma ? e.gamma / 2 : 0)); 
+            state.current.rx = Math.max(-15, Math.min(15, e.beta ? (e.beta - 45) / 2 : 0));
+            if (cardRef.current && !state.current.isDragging) {
+                cardRef.current.style.transition = 'transform 0.1s linear';
+                updateTransform();
+            }
+        };
+        window.addEventListener('deviceorientation', handleOrientation);
+        return () => window.removeEventListener('deviceorientation', handleOrientation);
+    }, []);
+
+    useEffect(() => {
+        state.current = { x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null };
+        if(cardRef.current) {
+            cardRef.current.style.transition = 'none';
+            cardRef.current.style.transform = `translate3d(0,0,0) scale(1)`;
+            cardRef.current.style.boxShadow = `0 30px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.1) inset`;
+        }
+        if (glareRef.current) glareRef.current.style.opacity = 0;
+        if (nextCardRef.current) {
+            nextCardRef.current.style.transform = 'scale(0.9) translateY(25px)';
+            nextCardRef.current.style.opacity = 0;
+        }
+    }, [card]);
+
+    useImperativeHandle(card?.ref, () => ({
+        forceSwipe: (dir) => { if (!state.current.isDragging && !state.current.isFlying && !latestProps.current.isBurning) triggerSwipe(dir); }
+    }));
+
+    if (!card) return null;
+
+    return (
+        <div className="card-stack">
+            {nextCard && (
+                <div ref={nextCardRef} className="next-card flex flex-col items-center justify-center opacity-0 pointer-events-none" style={{ transformOrigin: 'center bottom', willChange: 'transform, opacity' }}>
+                    <div className="text-[6rem] opacity-20 grayscale filter drop-shadow-md">{nextCard.avatar}</div>
+                </div>
+            )}
+            
+            <div ref={cardRef} 
+                className={`swipe-card cursor-grab active:cursor-grabbing origin-bottom ${card.isUrgent?'bg-rose-50 border-2 border-rose-300':''} ${isBurning ? 'animate-burn' : ''}`}
+                style={{ touchAction: 'none', transformOrigin: '50% 120%' }}
+                onPointerDown={handlePointerDown}
+            >
+                <div className="card-texture"></div>
+                <div ref={glareRef} className="absolute inset-0 rounded-[36px] pointer-events-none z-20 transition-opacity duration-200 opacity-0 mix-blend-overlay"></div>
+                
+                <div className="choice-indicator choice-left pointer-events-none">{card.leftChoice}</div>
+                <div className="choice-indicator choice-right pointer-events-none">{card.rightChoice}</div>
+                
+                {/* УМЕНЬШЕННЫЙ UI ДЛЯ ТЕЛЕФОНОВ: Высота 35%, шрифты меньше */}
+                <div className={`relative z-10 bg-slate-50/50 rounded-t-[36px] p-3 flex flex-col items-center justify-center border-b border-slate-100 h-[38%] pointer-events-none ${card.isUrgent?'bg-rose-50 border-rose-200':''}`}>
+                    <div id="card-wrapper" className="avatar-wrapper text-[4rem] mb-1 filter drop-shadow-[0_15px_15px_rgba(0,0,0,0.2)]">
+                        <span id="card-avatar">{card.avatar}</span>
+                    </div>
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight text-center leading-tight drop-shadow-sm">{card.character}</h2>
+                    <div className="mt-1 px-3 py-1 rounded-full font-black text-[10px] uppercase shadow-[0_5px_10px_rgba(37,99,235,0.3)] tracking-widest bg-blue-600 text-white">{card.role}</div>
+                </div>
+                
+                {/* БОЛЬШЕ МЕСТА ДЛЯ ТЕКСТА */}
+                <div className="p-4 flex-1 flex items-center justify-center bg-white rounded-b-[36px] pointer-events-none">
+                    <TypewriterText text={card.text} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+window.CardEngine = CardEngine;
