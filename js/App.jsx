@@ -1,6 +1,6 @@
 /* =========================================================
    ФАЙЛ: js/App.jsx
-   Главное Ядро Игры (Game Loop, Меню, Магазин, Сохранения)
+   Главное Ядро Игры (Интеграция Push-уведомлений и Чата)
 ========================================================= */
 
 const { useState, useEffect, useRef } = React;
@@ -84,12 +84,15 @@ function Game() {
   const [isSharing, setIsSharing] = useState(false); 
   const [isBurning, setIsBurning] = useState(false);
   
-  const timerRef = useRef(null);
-  const engineRef = useRef();
-
+  // --- НОВЫЕ СТЕЙТЫ ДЛЯ ЧАТА ---
+  const [toast, setToast] = useState(null); // Всплывающее уведомление
+  const [typingContact, setTypingContact] = useState(null); // Имя того, кто печатает
   const [messages, setMessages] = useState([
       { id: 1, from: "Юлия Борисовна", text: "Антон, завтра выездная комиссия ГИТ. Проверь журналы инструктажей, чтобы без косяков! Штрафы платить не будем.", read: false }
   ]);
+  
+  const timerRef = useRef(null);
+  const engineRef = useRef();
 
   // ЗАГРУЗКА СОХРАНЕНИЙ ИЗ БРАУЗЕРА
   useEffect(() => {
@@ -100,15 +103,51 @@ function Game() {
       } catch(e) {}
   }, []);
 
-  // ЭФФЕКТЫ ФОНА И ЭМБИЕНТА
+  // ЭФФЕКТЫ ФОНА
   useEffect(() => {
       if (gameState === 'playing') {
           if (stats.budget < 30) document.body.classList.add('critical-budget'); else document.body.classList.remove('critical-budget');
           if (stats.safety < 30) document.body.classList.add('critical-safety'); else document.body.classList.remove('critical-safety');
           if (stats.loyalty < 30) document.body.classList.add('critical-loyalty'); else document.body.classList.remove('critical-loyalty');
-          if (window.AudioEngine) window.AudioEngine.updateAmbient(stats);
       } else document.body.className = ''; 
   }, [stats, gameState]);
+
+  // --- ИНТЕГРАЦИЯ ЖИВОГО ЧАТА ---
+  useEffect(() => {
+      if (gameState === 'playing' && window.ChatEngine) {
+          const handleChatEvent = (event, data) => {
+              if (event === 'typing') {
+                  setTypingContact(data.from); // Показываем, что кто-то печатает
+              } 
+              else if (event === 'message') {
+                  setTypingContact(null);
+                  setMessages(prev => [data, ...prev]);
+                  
+                  // Показываем Push-уведомление
+                  setToast({ from: data.from, text: data.text });
+                  
+                  // Проигрываем звук (с дакингом) и вибрируем
+                  if (window.AudioEngine) window.AudioEngine.msg();
+                  if (window.vibrate) window.vibrate([100, 50]);
+                  
+                  setPhoneState(prev => ({ ...prev, ringing: true }));
+                  
+                  // Прячем уведомление через 4 секунды
+                  setTimeout(() => setToast(null), 4000);
+              }
+          };
+          
+          window.ChatEngine.subscribe(handleChatEvent);
+          window.ChatEngine.start();
+          
+          return () => {
+              window.ChatEngine.unsubscribe(handleChatEvent);
+              window.ChatEngine.stop();
+          };
+      } else {
+          if (window.ChatEngine) window.ChatEngine.stop();
+      }
+  }, [gameState]);
 
   const unlockAchievement = (id) => {
       setAchievements(prev => { 
@@ -133,34 +172,24 @@ function Game() {
       return "Бог Охраны Труда"; 
   };
 
-  // СТАРТ МЕГА-СМЕНЫ (Смешиваем все 30 карт)
   const startMegaShift = () => {
-      if (window.AudioEngine) {
-          window.AudioEngine.init(); 
-          window.AudioEngine.startAmbient();
-      }
+      if (window.AudioEngine) window.AudioEngine.init(); 
       if (window.vibrate) window.vibrate(50); 
       
       setFeedback(null); setIsBurning(false); setIsVictory(false); 
       setPhoneState({ open: false, tab: 'chats', ringing: false }); 
+      setToast(null); setTypingContact(null);
       setActionLog([]); setHasWarnedLowStats(false);
       setDay(1); setContactsUsed({ vv: false, buh: false, prof: false }); 
       setTimeLeft(8); setPlaystyle({ s: 0, b: 0, l: 0 }); setFlags({});
       
-      // Баффы от кабинета
       setStats({ 
           safety: 50 + (territory.includes('t_fire') ? 10 : 0), 
           budget: 50 + (territory.includes('t_warehouse') ? 10 : 0), 
           loyalty: 50 + (territory.includes('t_med') ? 10 : 0) 
       });
 
-      // СМЕШИВАЕМ ВСЕ БАЗЫ
-      let megaDeck = [
-          ...window.CAMPAIGNS.main, 
-          ...window.CAMPAIGNS.park, 
-          ...window.CAMPAIGNS.med
-      ]; 
-      megaDeck = megaDeck.sort(() => Math.random() - 0.5);
+      let megaDeck = [...window.CAMPAIGNS.main, ...window.CAMPAIGNS.park, ...window.CAMPAIGNS.med].sort(() => Math.random() - 0.5);
       megaDeck[0].ref = engineRef; 
       
       setDeck(megaDeck); setCurrentCard(megaDeck[0]); setNextCard(megaDeck[1]); 
@@ -170,28 +199,21 @@ function Game() {
   const handleTimeout = () => {
       unlockAchievement('slow'); 
       setDeathReason("ИТОГ:\nВы растерялись в критической ситуации.\n\nВЕРДИКТ:\nВас отстранили за халатность.");
-      setActionLog(prev => [...prev, { text: currentCard.text, choice: "БЕЗДЕЙСТВИЕ", isError: true, rule: currentCard.rule || "Нарушение регламента быстрого реагирования." }]);
       gameOverSequence(false);
   };
 
   const gameOverSequence = (victory = false) => {
       setIsVictory(victory); setIsBurning(!victory); 
-      if (window.AudioEngine) window.AudioEngine.stopAmbient();
-      
+      if (window.AudioEngine) window.AudioEngine.stopBGM();
       if (Math.floor(day / 2) > 0) addCoins(Math.floor(day / 2));
       
       setTimeout(() => { 
           setGameState('gameover'); 
           if (window.vibrate) window.vibrate([500, 200, 500]); 
-          setTimeout(() => { 
-              if (window.AudioEngine) {
-                  if (victory) window.AudioEngine.winStamp(); else window.AudioEngine.stamp(); 
-              }
-          }, 100); 
+          setTimeout(() => { if (window.AudioEngine) victory ? window.AudioEngine.winStamp() : window.AudioEngine.stamp(); }, 100); 
       }, 1200); 
   };
 
-  // ТАЙМЕР СРОЧНЫХ КАРТОЧЕК
   useEffect(() => {
       if (gameState === 'playing' && currentCard?.isUrgent && !phoneState.open && !feedback) {
           timerRef.current = setInterval(() => { 
@@ -205,55 +227,14 @@ function Game() {
       }
   }, [gameState, currentCard, phoneState.open, feedback]);
 
-  // ЗВОНОК СМАРТФОНА В ЧС
-  useEffect(() => {
-      let hintTimer; const needsHelp = stats.safety < 40 || stats.budget < 40 || stats.loyalty < 40;
-      if (needsHelp && (!contactsUsed.vv || !contactsUsed.buh || !contactsUsed.prof) && gameState === 'playing' && !phoneState.open && !hasWarnedLowStats) {
-          if (window.AudioEngine) window.AudioEngine.msg(); 
-          setPhoneState({...phoneState, ringing: true}); 
-          setHasWarnedLowStats(true); 
-      } else if (!needsHelp) { 
-          setHasWarnedLowStats(false); setPhoneState({...phoneState, ringing: false});
-      }
-      return () => clearTimeout(hintTimer);
-  }, [stats, contactsUsed, gameState, phoneState.open, hasWarnedLowStats]);
-
-   // --- НОВОЕ: ЖИВОЙ ЧАТ С СОТРУДНИКАМИ ---
-  useEffect(() => {
-      // Запускаем чат только когда идет игра
-      if (gameState === 'playing' && window.ChatEngine) {
-          window.ChatEngine.start((newMessage) => {
-              // Добавляем новое сообщение в начало списка
-              setMessages(prev => [newMessage, ...prev]);
-              
-              // Проигрываем звук уведомления и зажигаем телефон
-              if (window.AudioEngine) window.AudioEngine.msg();
-              if (window.vibrate) window.vibrate([100, 50]);
-              setPhoneState(prev => ({ ...prev, ringing: true }));
-          });
-      } else {
-          // Останавливаем, если мы в меню или проиграли
-          if (window.ChatEngine) window.ChatEngine.stop();
-      }
-      
-      // Очистка при размонтировании
-      return () => { if (window.ChatEngine) window.ChatEngine.stop(); };
-  }, [gameState]);
-
-  // ОБРАБОТКА СВАЙПА
   const handleSwipe = (direction) => {
     clearInterval(timerRef.current);
-    
-    // Аудио свайпа бумаги
-    if (window.AudioEngine) window.AudioEngine.swipe();
-
     const effects = direction === 'left' ? currentCard.onLeft : currentCard.onRight;
     
     setPlaystyle(prev => ({ s: prev.s + (effects.safety > 0 ? effects.safety : 0), b: prev.b + (effects.budget > 0 ? effects.budget : 0), l: prev.l + (effects.loyalty > 0 ? effects.loyalty : 0) }));
 
     if (effects.safety < -15 || effects.budget < -15) {
         if (window.AudioEngine) window.AudioEngine.error(); 
-        setActionLog(prev => [...prev, { text: currentCard.text, choice: direction === 'left' ? currentCard.leftChoice : currentCard.rightChoice, isError: true, rule: currentCard.rule || "Нарушение регламента." }]);
     }
 
     const newFlags = { ...flags };
@@ -319,26 +300,8 @@ function Game() {
 
   const openPhone = () => {
       setMessages(messages.map(m => ({...m, read: true})));
-      setPhoneState({ open: true, tab: 'contacts', ringing: false });
-  };
-
-  const shareResult = async () => {
-      setIsSharing(true); await new Promise(r => setTimeout(r, 100)); 
-      const badgeElem = document.getElementById('share-badge-wrap'); 
-      const oldBodyOverflow = document.body.style.overflow;
-      
-      document.body.style.overflow = 'visible'; 
-      badgeElem.style.top = '0px'; badgeElem.style.left = '0px'; badgeElem.style.opacity = '1';
-      
-      await new Promise(r => setTimeout(r, 200));
-      try {
-          const canvas = await html2canvas(badgeElem, { scale: 2, backgroundColor: '#0f172a', windowWidth: 600, windowHeight: 900 });
-          const dataUrl = canvas.toDataURL('image/png'); const blob = await (await fetch(dataUrl)).blob(); const file = new File([blob], 'smena-result.png', { type: 'image/png' });
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ title: 'Мой результат в СМЕНЕ', text: `Я прошел ${day} смен! Звание: ${getRank(day)}`, files: [file] });
-          else { const a = document.createElement('a'); a.href = dataUrl; a.download = `Smena_${day}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
-      } catch (e) { alert("Ошибка сохранения."); } finally {
-          document.body.style.overflow = oldBodyOverflow; badgeElem.style.top = '-9999px'; badgeElem.style.left = '-9999px'; badgeElem.style.opacity = '0'; setIsSharing(false);
-      }
+      setToast(null); // Скрываем баннер при открытии телефона
+      setPhoneState({ open: true, tab: 'chats', ringing: false });
   };
 
   const getTimeClass = () => day <= 5 ? 'theme-morning' : day <= 15 ? 'theme-day' : day <= 25 ? 'theme-evening' : 'theme-night';
@@ -349,17 +312,13 @@ function Game() {
           <div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
               <button onClick={() => setGameState('start')} className="btn-back">←</button>
               <h2 className="text-3xl font-black uppercase tracking-widest text-emerald-400 mb-8">Удостоверения</h2>
-              
               <div className="w-full max-w-md flex flex-col gap-4 overflow-y-auto pb-10 custom-scroll">
                   {window.ACHIEVEMENTS_LIST.map(ach => {
                       const isUnlocked = achievements.includes(ach.id);
                       return (
                           <div key={ach.id} className={`p-4 rounded-3xl border-2 flex items-center gap-4 transition-all ${isUnlocked ? 'bg-slate-800 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-900 border-slate-700 opacity-50 grayscale'}`}>
                               <div className="text-4xl">{isUnlocked ? ach.icon : '🔒'}</div>
-                              <div>
-                                  <div className="font-black text-lg">{isUnlocked ? ach.title : 'Неизвестно'}</div>
-                                  <div className="text-sm text-slate-400 leading-tight">{isUnlocked ? ach.desc : 'Пройдите смену, чтобы узнать.'}</div>
-                              </div>
+                              <div><div className="font-black text-lg">{isUnlocked ? ach.title : 'Неизвестно'}</div><div className="text-sm text-slate-400 leading-tight">{isUnlocked ? ach.desc : 'Пройдите смену, чтобы узнать.'}</div></div>
                           </div>
                       )
                   })}
@@ -375,35 +334,24 @@ function Game() {
               <button onClick={() => setGameState('start')} className="btn-back">←</button>
               <h2 className="text-3xl font-black uppercase tracking-widest text-blue-400 mb-2">Ваш Кабинет</h2>
               <div className="bg-slate-800 px-6 py-2 rounded-full border border-slate-600 mb-8 font-black text-xl text-yellow-400 shadow-md">Бюджет: {coins} 🪙</div>
-              
               <div className="w-full max-w-md flex flex-col gap-4 overflow-y-auto pb-10 custom-scroll">
                   <p className="text-center text-slate-400 text-sm mb-2">Улучшения дают бонусы в начале каждой смены.</p>
                   {window.TERRITORY_UPGRADES.map(upg => {
                       const isOwned = territory.includes(upg.id);
                       return (
                           <div key={upg.id} className={`p-4 rounded-3xl border-2 flex justify-between items-center gap-3 transition-all ${isOwned ? 'bg-blue-900/30 border-blue-500' : 'bg-slate-800 border-slate-600'}`}>
-                              <div className="flex items-center gap-3">
-                                  <div className="text-3xl">{upg.icon}</div>
-                                  <div>
-                                      <div className="font-black text-[15px] leading-tight">{upg.name}</div>
-                                      <div className="text-[11px] text-emerald-400 uppercase font-bold mt-1">{upg.desc}</div>
-                                  </div>
-                              </div>
+                              <div className="flex items-center gap-3"><div className="text-3xl">{upg.icon}</div><div><div className="font-black text-[15px] leading-tight">{upg.name}</div><div className="text-[11px] text-emerald-400 uppercase font-bold mt-1">{upg.desc}</div></div></div>
                               {!isOwned ? (
                                   <button onClick={() => {
                                       if (coins >= upg.cost) {
                                           if (window.AudioEngine) window.AudioEngine.buy();
                                           setCoins(prev => { const n = prev - upg.cost; localStorage.setItem('smena_coins', n); return n; });
                                           setTerritory(prev => { const n = [...prev, upg.id]; localStorage.setItem('smena_territory', JSON.stringify(n)); return n; });
-                                      } else {
-                                          if (window.AudioEngine) window.AudioEngine.error();
-                                      }
+                                      } else { if (window.AudioEngine) window.AudioEngine.error(); }
                                   }} className={`px-4 py-2 rounded-xl font-black text-sm whitespace-nowrap shadow-md ${coins >= upg.cost ? 'bg-blue-600 active:scale-95' : 'bg-slate-700 text-slate-500'}`}>
                                       {upg.cost} 🪙
                                   </button>
-                              ) : (
-                                  <div className="text-blue-400 font-black text-sm px-2">КУПЛЕНО</div>
-                              )}
+                              ) : <div className="text-blue-400 font-black text-sm px-2">КУПЛЕНО</div>}
                           </div>
                       )
                   })}
@@ -415,26 +363,22 @@ function Game() {
   /* --- РЕНДЕР: МЕНЮ --- */
   if (gameState === 'start') {
     return (
-      <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center animate-fade-in relative theme-morning">
+      <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative theme-morning">
         <div className="mesh-container"><div className="blob blob-1 w-[400px] h-[400px] top-[-10%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[350px] h-[350px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '2s'}}></div></div>
-        <div className="grid-overlay"></div><div className="noise"></div>
+        <div className="grid-overlay"></div>
         
         <div className="text-8xl mb-4 drop-shadow-[0_0_30px_rgba(14,165,233,0.6)] relative z-10 mt-10">👷</div>
-        <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">СМЕНА 3.0</h1>
-        <p className="text-lg font-bold text-blue-400 mb-10 uppercase tracking-widest">Симулятор СОТ</p>
+        <h1 className="text-6xl font-black text-white mb-2 tracking-tighter drop-shadow-lg">СМЕНА 3.0</h1>
+        <p className="text-lg font-bold text-blue-400 mb-10 uppercase tracking-widest drop-shadow-md">Симулятор СОТ</p>
         
         <div className="w-full max-w-xs flex flex-col gap-4 relative z-50">
-            {/* КНОПКА СТАРТА - МЕГА СМЕНА */}
-            <button onClick={startMegaShift} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 active:scale-95 transition-transform">Начать Смену</button>
-            
+            <button onClick={startMegaShift} className="bg-blue-600 text-white font-black py-4 rounded-full text-lg shadow-[0_0_20px_rgba(37,99,235,0.6)] uppercase border-2 border-blue-400 hover:scale-105 active:scale-95 transition-all">Начать Смену</button>
             <div className="flex gap-4 mt-2">
-                <button onClick={() => { if(window.AudioEngine) window.AudioEngine.init(); setGameState('office')}} className="flex-1 bg-slate-800 text-slate-200 font-black py-3 rounded-full text-sm shadow-lg uppercase border border-slate-600 active:scale-95 transition-transform flex flex-col items-center justify-center gap-1">
-                    <span>Ваш Кабинет</span>
-                    <span className="text-[10px] text-yellow-500">{coins} 🪙</span>
+                <button onClick={() => { if(window.AudioEngine) window.AudioEngine.init(); setGameState('office')}} className="flex-1 bg-slate-800 text-slate-200 font-black py-3 rounded-full text-sm shadow-lg uppercase border border-slate-600 hover:bg-slate-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+                    <span>Ваш Кабинет</span><span className="text-[10px] text-yellow-500">{coins} 🪙</span>
                 </button>
-                <button onClick={() => { if(window.AudioEngine) window.AudioEngine.init(); setGameState('achievements')}} className="flex-1 bg-slate-800 text-slate-200 font-black py-3 rounded-full text-sm shadow-lg uppercase border border-slate-600 active:scale-95 transition-transform flex flex-col items-center justify-center gap-1">
-                    <span>Удостоверения</span>
-                    <span className="text-[10px] text-emerald-400">{achievements.length} / 5</span>
+                <button onClick={() => { if(window.AudioEngine) window.AudioEngine.init(); setGameState('achievements')}} className="flex-1 bg-slate-800 text-slate-200 font-black py-3 rounded-full text-sm shadow-lg uppercase border border-slate-600 hover:bg-slate-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+                    <span>Удостоверения</span><span className="text-[10px] text-emerald-400">{achievements.length} / 10</span>
                 </button>
             </div>
         </div>
@@ -442,39 +386,11 @@ function Game() {
     );
   }
 
-  /* --- РЕНДЕР: ИГРА ОКОНЧЕНА --- */
   if (gameState === 'gameover') {
-    const totalPoints = (playstyle.s + playstyle.b + playstyle.l) || 1;
-    const sNorm = (playstyle.s / totalPoints) * 40; const bNorm = (playstyle.b / totalPoints) * 40; const lNorm = (playstyle.l / totalPoints) * 40;
-    const points = `50,${50-sNorm} ${50+bNorm*0.866},${50+bNorm*0.5} ${50-lNorm*0.866},${50+lNorm*0.5}`;
-    const moneyValue = (stats.budget * 100000).toLocaleString('ru-RU');
-
     return (
-      <div id="gameover-container" className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative z-20 bg-[#0f172a] overflow-hidden">
-          <div id="share-badge-wrap" className="share-badge">
-              <div className="badge-logo">🛡️ СМЕНА</div>
-              <div className="badge-title">Удостоверение СОТ</div><div className="badge-sub">Официальный результат</div>
-              <div className="badge-days-label">{isVictory ? 'Завершено:' : 'Продержался:'}</div><div className="badge-days">{day}</div>
-              <div className="badge-days-label" style={{marginTop:'10px', marginBottom:'40px'}}>смен</div>
-              <div className="badge-rank">{getRank(day)}</div>
-              <div className="radar-box">
-                  <svg viewBox="0 0 100 100" width="300" height="300">
-                      <polygon points="50,10 84.6,70 15.4,70" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                      <polygon points="50,23.3 73.1,63.3 26.9,63.3" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                      <polygon points="50,36.6 61.5,56.6 38.5,56.6" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                      <line x1="50" y1="50" x2="50" y2="10" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                      <line x1="50" y1="50" x2="84.6" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                      <line x1="50" y1="50" x2="15.4" y2="70" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                      <polygon points={points} fill="rgba(56, 189, 248, 0.6)" stroke="#38bdf8" strokeWidth="2" strokeLinejoin="round"/>
-                      <text x="50" y="5" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Правила</text>
-                      <text x="90" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Бюджет</text>
-                      <text x="10" y="75" fill="#f8fafc" fontSize="6" textAnchor="middle" fontWeight="bold">Люди</text>
-                  </svg>
-              </div>
-          </div>
-
+      <div className="flex flex-col items-center justify-center h-[100dvh] px-6 text-center relative z-20 bg-[#0f172a] overflow-hidden">
           <div className="absolute inset-0 overflow-y-auto custom-scroll flex flex-col items-center p-6">
-              <div className="text-7xl mb-2 mt-10">{isVictory ? '🎉' : '💀'}</div>
+              <div className="text-7xl mb-2 mt-10 filter drop-shadow-xl">{isVictory ? '🎉' : '💀'}</div>
               <h1 className={`text-3xl font-black uppercase tracking-widest drop-shadow-lg mb-4 ${isVictory ? 'text-emerald-500' : 'text-rose-500'}`}>
                   {isVictory ? 'Аттестация Сдана' : 'Смена Провалена'}
               </h1>
@@ -482,7 +398,7 @@ function Game() {
               <div className={`bg-slate-800 border-2 p-4 rounded-3xl mb-4 max-w-sm w-full shadow-2xl ${isVictory ? 'border-emerald-900' : 'border-rose-900'}`}>
                   <p className="text-slate-200 text-sm whitespace-pre-line text-left font-medium leading-relaxed mb-4">{deathReason}</p>
                   <div className="border-t border-slate-700 pt-4 flex justify-between text-xs font-bold text-slate-400">
-                      <div>💰 Остаток: {moneyValue} ₽</div>
+                      <div>💰 Бюджет: {(stats.budget * 100000).toLocaleString('ru-RU')} ₽</div>
                       <div>🛡️ ТБ: {stats.safety}%</div>
                   </div>
               </div>
@@ -491,10 +407,7 @@ function Game() {
               <div className={`stamp ${isVictory ? 'stamp-victory' : ''}`}>{isVictory ? 'АТТЕСТОВАН' : 'УВОЛЕН'}</div>
               
               <div className="flex flex-col w-full max-w-xs gap-3 mt-8 mb-10 pb-10">
-                 <button onClick={shareResult} disabled={isSharing} className={`bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black py-4 w-full rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] tracking-widest uppercase flex justify-center gap-2 ${isSharing ? 'opacity-70' : 'active:scale-95 transition-transform'}`}>
-                     {isSharing ? '⌛ Генерируем...' : '📸 Поделиться'}
-                 </button>
-                 <button onClick={() => setGameState('start')} className="bg-slate-700 text-white font-black py-4 w-full rounded-full border border-slate-500 shadow-lg tracking-widest uppercase active:scale-95 transition-transform">В Главное меню</button>
+                 <button onClick={() => setGameState('start')} className="bg-slate-700 text-white font-black py-4 w-full rounded-full border border-slate-500 shadow-lg tracking-widest uppercase hover:bg-slate-600 active:scale-95 transition-all">В Главное меню</button>
               </div>
           </div>
       </div>
@@ -506,37 +419,84 @@ function Game() {
     <div className={`flex flex-col h-[100dvh] overflow-hidden relative z-10 transition-all duration-1000 ${getTimeClass()}`}>
       <div className="hazard-border"></div><div className="vignette-anger"></div>
       <div className="mesh-container"><div className="blob blob-1 w-[500px] h-[500px] top-[-20%] left-[-10%] animate-blob"></div><div className="blob blob-2 w-[450px] h-[450px] bottom-[-10%] right-[-10%] animate-blob" style={{animationDelay: '3s'}}></div></div>
-      <div className="grid-overlay"></div><div className="noise"></div>
+      <div className="grid-overlay"></div>
 
+      {/* --- PUSH-УВЕДОМЛЕНИЕ --- */}
+      {toast && (
+          <div onClick={openPhone} className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-slate-800/95 backdrop-blur-xl border border-slate-600 shadow-2xl rounded-2xl p-4 z-[100] cursor-pointer transition-all duration-300 transform translate-y-0 opacity-100 flex items-start gap-3 active:scale-95">
+              <div className="w-10 h-10 min-w-[40px] bg-blue-600 rounded-full flex items-center justify-center text-xl shadow-inner">💬</div>
+              <div className="flex-1 overflow-hidden">
+                  <div className="text-white font-bold text-sm truncate">{toast.from}</div>
+                  <div className="text-slate-300 text-xs line-clamp-2 mt-0.5 leading-tight">{toast.text}</div>
+              </div>
+          </div>
+      )}
+
+      {/* МИНИ-ТЕЛЕФОН СПРАВА */}
       <button onClick={openPhone} className={`physical-phone ${phoneState.ringing ? 'ringing' : ''}`}>
           <div className="phone-screen-mini">
-              <span className="text-[10px] text-slate-500 absolute bottom-1">09:41</span>
+              <span className="text-[10px] text-slate-500 absolute bottom-1 font-bold">09:41</span>
               {messages.filter(m=>!m.read).length > 0 && <div className="phone-badge-diegetic"></div>}
           </div>
       </button>
 
+      {/* ИНТЕРФЕЙС ИОС-ТЕЛЕФОНА */}
       {phoneState.open && (
-          <div className="absolute inset-0 z-[55] bg-slate-900/90 backdrop-blur-md flex flex-col p-4 animate-slideUp">
-              <div className="bg-slate-800 flex-1 rounded-3xl border-4 border-slate-700 shadow-2xl flex flex-col overflow-hidden relative">
-                  <div className="bg-slate-900 p-4 flex justify-between items-center border-b border-slate-700">
-                      <div className="font-black text-xl text-white">Контакты СОТ</div>
-                      <button onClick={() => setPhoneState({...phoneState, open: false})} className="text-slate-400 text-3xl font-bold hover:text-white">×</button>
+          <div className="absolute inset-0 z-[150] bg-slate-900/90 backdrop-blur-md flex flex-col p-4 animate-slideUp">
+              <div className="ios-screen">
+                  <div className="ios-header flex justify-between items-center">
+                      <span className="text-blue-400 font-bold text-sm">Назад</span>
+                      <span>Чаты СОТ</span>
+                      <button onClick={() => setPhoneState({...phoneState, open: false})} className="text-slate-400 text-2xl font-black">×</button>
                   </div>
-                  <div className="flex bg-slate-800 p-2 gap-2 border-b border-slate-700">
-                      <button onClick={()=>setPhoneState({...phoneState, tab: 'chats'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'chats' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>💬 Чаты</button>
-                      <button onClick={()=>setPhoneState({...phoneState, tab: 'contacts'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'contacts' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>📇 Контакты</button>
+                  
+                  <div className="flex bg-slate-800 p-2 gap-2 border-b border-slate-700 z-10">
+                      <button onClick={()=>setPhoneState({...phoneState, tab: 'chats'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'chats' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400'}`}>💬 Чаты</button>
+                      <button onClick={()=>setPhoneState({...phoneState, tab: 'contacts'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'contacts' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400'}`}>📇 Контакты</button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scroll">
-                      {phoneState.tab === 'chats' && messages.map(msg => (
-                          <div key={msg.id} className="bg-slate-700 p-4 rounded-2xl rounded-tl-none self-start max-w-[85%] border border-slate-600 shadow-md">
-                              <div className="text-blue-400 font-bold text-[10px] uppercase mb-1">{msg.from}</div><div className="text-white text-sm">{msg.text}</div>
-                          </div>
-                      ))}
+                  
+                  <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scroll relative bg-[#0f172a]">
+                      
+                      {/* КОНТАКТЫ */}
                       {phoneState.tab === 'contacts' && (
-                          <div className="p-3 bg-slate-700 rounded-xl border border-slate-600 flex justify-between items-center shadow-md">
-                              <div><div className="text-white font-bold">В.В. (Директор)</div><div className="text-emerald-400 text-[10px] uppercase">Восстановит всё до 60%</div></div>
-                              <button onClick={()=>useContact('vv')} disabled={contactsUsed.vv} className={`px-4 py-2 rounded-lg font-black text-sm ${!contactsUsed.vv ? 'bg-emerald-500 text-slate-900 shadow-md active:scale-95' : 'bg-slate-600 text-slate-400'}`}>☎️</button>
-                          </div>
+                          <>
+                              <div className="p-3 bg-slate-800 rounded-xl border border-slate-700 flex justify-between items-center shadow-md">
+                                  <div><div className="text-white font-bold">В.В. (Директор)</div><div className="text-emerald-400 text-[10px] uppercase font-bold">Восстановит всё до 60%</div></div>
+                                  <button onClick={()=>useContact('vv')} disabled={contactsUsed.vv} className={`px-4 py-2 rounded-xl font-black text-sm ${!contactsUsed.vv ? 'bg-emerald-500 text-slate-900 shadow-md active:scale-95' : 'bg-slate-700 text-slate-500'}`}>📞</button>
+                              </div>
+                              <div className="p-3 bg-slate-800 rounded-xl border border-slate-700 flex justify-between items-center shadow-md">
+                                  <div><div className="text-white font-bold">Главбух Зинаида</div><div className="text-yellow-400 text-[10px] uppercase font-bold">+30 Бюджет / -20 Люди</div></div>
+                                  <button onClick={()=>useContact('buh')} disabled={contactsUsed.buh} className={`px-4 py-2 rounded-xl font-black text-sm ${!contactsUsed.buh ? 'bg-yellow-500 text-slate-900 shadow-md active:scale-95' : 'bg-slate-700 text-slate-500'}`}>📞</button>
+                              </div>
+                              <div className="p-3 bg-slate-800 rounded-xl border border-slate-700 flex justify-between items-center shadow-md">
+                                  <div><div className="text-white font-bold">Профком</div><div className="text-blue-400 text-[10px] uppercase font-bold">+30 Люди / -20 Бюджет</div></div>
+                                  <button onClick={()=>useContact('prof')} disabled={contactsUsed.prof} className={`px-4 py-2 rounded-xl font-black text-sm ${!contactsUsed.prof ? 'bg-blue-500 text-white shadow-md active:scale-95' : 'bg-slate-700 text-slate-500'}`}>📞</button>
+                              </div>
+                          </>
+                      )}
+
+                      {/* СООБЩЕНИЯ */}
+                      {phoneState.tab === 'chats' && (
+                          <>
+                              {messages.map(msg => (
+                                  <div key={msg.id} className="chat-bubble-received">
+                                      <div className="text-blue-400 font-black text-[10px] uppercase mb-1">{msg.from}</div>
+                                      <div className="text-sm leading-snug">{msg.text}</div>
+                                  </div>
+                              ))}
+                              
+                              {/* АНИМАЦИЯ ПЕЧАТАЮЩЕГО ЧЕЛОВЕКА */}
+                              {typingContact && (
+                                  <div className="chat-bubble-received !w-20 animate-pulse flex flex-col">
+                                      <div className="text-slate-400 font-bold text-[9px] uppercase mb-1 truncate">{typingContact}</div>
+                                      <div className="flex gap-1 items-center h-4">
+                                          <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                                          <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                                          <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                                      </div>
+                                  </div>
+                              )}
+                          </>
                       )}
                   </div>
               </div>
@@ -544,7 +504,7 @@ function Game() {
       )}
 
       {feedback && (
-          <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in bg-slate-900/80 backdrop-blur-md">
+          <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
               <div className="bg-white p-8 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center border-4 border-slate-200 flex flex-col items-center justify-center max-w-sm w-full">
                   <p className="text-slate-900 font-black text-xl mb-8 leading-relaxed whitespace-pre-line">{feedback.text}</p>
               </div>
@@ -554,7 +514,7 @@ function Game() {
       {/* ПАНЕЛЬ ПРИБОРОВ */}
       <div className={`dashboard-panel`}>
           <div className="flex justify-between items-center mb-2 px-2">
-              <div className="font-black text-lg text-slate-400 tracking-widest uppercase">КАРТА {day}</div>
+              <div className="font-black text-lg text-slate-400 tracking-widest uppercase">СМЕНА {day}</div>
               {currentCard?.isUrgent && !feedback && <div className="text-lg font-black text-rose-500 bg-rose-950 px-4 py-1 rounded-full border-2 border-rose-500 animate-pulse shadow-[0_0_15px_rgba(225,29,72,0.5)]">⏱️ 0:0{timeLeft}</div>}
           </div>
           <div className="flex justify-between items-end gap-4 px-1 mt-4">
@@ -568,7 +528,6 @@ function Game() {
           {window.CardEngine && <window.CardEngine card={currentCard} nextCard={nextCard} onSwipe={handleSwipe} isBurning={isBurning} />}
       </div>
 
-      {/* КНОПКИ ВНИЗУ */}
       {!feedback && !isBurning && !phoneState.open && (
           <div className="action-buttons">
               <button onClick={() => engineRef.current?.forceSwipe('left')} className="btn-action btn-reject">{currentCard?.leftChoice || 'ОТКАЗАТЬ'}</button>
@@ -579,6 +538,5 @@ function Game() {
   );
 }
 
-// Запуск React
 const root = ReactDOM.createRoot(document.getElementById('game-root'));
 root.render(<Game />);
