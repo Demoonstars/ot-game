@@ -449,10 +449,14 @@ function Game() {
           <div className="absolute inset-0 z-[150] bg-slate-900/90 backdrop-blur-md flex flex-col p-4 animate-slideUp">
               <div className="ios-screen">
                   <div className="ios-header flex justify-between items-center">
-                      <span className="text-blue-400 font-bold text-sm">Назад</span>
-                      <span>Чаты СОТ</span>
-                      <button onClick={() => setPhoneState({...phoneState, open: false})} className="text-slate-400 text-2xl font-black">×</button>
-                  </div>
+                   <button onClick={() => setPhoneState({...phoneState, open: false})} className="text-blue-500 font-semibold text-[16px] flex items-center tracking-tight active:opacity-50 transition-opacity">
+                    <span className="text-2xl leading-none mr-1 -mt-0.5">‹</span> Назад
+                   </button>
+                   <span className="font-bold text-[16px] tracking-wide text-white">Чаты СОТ</span>
+                   <button onClick={() => setPhoneState({...phoneState, open: false})} className="bg-slate-700/50 hover:bg-slate-600 text-slate-300 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold transition-colors active:scale-90">
+                    ×
+                   </button>
+               </div>
                   
                   <div className="flex bg-slate-800 p-2 gap-2 border-b border-slate-700 z-10">
                       <button onClick={()=>setPhoneState({...phoneState, tab: 'chats'})} className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${phoneState.tab === 'chats' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400'}`}>💬 Чаты</button>
