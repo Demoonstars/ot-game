@@ -1,6 +1,6 @@
 /* =========================================================
    ФАЙЛ: js/CardEngine.jsx
-   AAA-Движок: ИСПРАВЛЕННЫЕ СТИЛИ (Возврат к CSS-классам)
+   AAA-Движок: Holo Foil и Картонная Текстура
 ========================================================= */
 
 const { useRef, useState, useEffect, useImperativeHandle } = React;
@@ -37,11 +37,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     const nextCardRef = useRef(null);
     const glareRef = useRef(null);
     
-    const state = useRef({ 
-        x: 0, y: 0, rx: 0, ry: 0, 
-        isDragging: false, isFlying: false, 
-        startX: 0, startY: 0, currentPrediction: null 
-    });
+    const state = useRef({ x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null });
 
     const latestProps = useRef({ card, onSwipe, isBurning });
     useEffect(() => { latestProps.current = { card, onSwipe, isBurning }; }, [card, onSwipe, isBurning]);
@@ -66,9 +62,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         const absX = Math.abs(x);
         const intensity = Math.min(absX / SWIPE_THRESHOLD, 1); 
         
-        if (window.AudioEngine && window.AudioEngine.setTension) {
-            window.AudioEngine.setTension(intensity);
-        }
+        if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(intensity);
 
         const safetyUI = document.getElementById('gauge-safety');
         const budgetUI = document.getElementById('lcd-budget');
@@ -122,10 +116,17 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
             ? `0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.2) inset` 
             : `0 30px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.1) inset`;
 
+        // === НОВЫЙ ГОЛОГРАФИЧЕСКИЙ БЛИК (HOLO FOIL) ===
         if (glareRef.current) {
-            const intensity = Math.min(Math.abs(x)/200 + Math.abs(ry)/30, 0.6);
+            const intensity = Math.min(Math.abs(x)/150 + Math.abs(ry)/30, 0.8);
             glareRef.current.style.opacity = intensity;
-            glareRef.current.style.background = `linear-gradient(${105 + x * 0.5 + ry * 2}deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 80%)`;
+            
+            glareRef.current.style.background = `linear-gradient(${105 + x * 0.5 + ry * 2}deg, 
+                rgba(255,255,255,0) 10%, 
+                rgba(255,215,0, 0.3) 30%, 
+                rgba(255,20,147, 0.3) 50%, 
+                rgba(0,255,255, 0.3) 70%, 
+                rgba(255,255,255,0) 90%)`;
         }
 
         const leftInd = cardRef.current.querySelector('.choice-left'); 
@@ -206,8 +207,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     const triggerSwipe = (direction) => {
         state.current.isFlying = true;
         if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(0); 
-        
-        // Воспроизводим звук свайпа с 3D-эффектом
         if (window.AudioEngine && window.AudioEngine.swipe) window.AudioEngine.swipe(direction); 
         
         state.current.x = direction === 'right' ? window.innerWidth + 100 : -window.innerWidth - 100; 
@@ -254,9 +253,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     if (!card) return null;
 
     return (
-        // ВЕРНУЛИ КЛАССЫ card-stack И swipe-card ИЗ CSS!
         <div className="card-stack">
-            
             {nextCard && (
                 <div ref={nextCardRef} className="next-card flex flex-col items-center justify-center opacity-0 pointer-events-none" style={{ transformOrigin: 'center bottom', willChange: 'transform, opacity' }}>
                     <div className="text-[6rem] opacity-20 grayscale filter drop-shadow-md">{nextCard.avatar}</div>
@@ -272,7 +269,10 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
                 onPointerCancel={handlePointerUp}
                 onPointerLeave={handlePointerUp}
             >
-                <div ref={glareRef} className="glare mix-blend-overlay"></div>
+                {/* МИКРОТЕКСТУРА КАРТОНА */}
+                <div className="card-texture"></div>
+                {/* ГОЛОГРАФИЧЕСКИЙ БЛИК */}
+                <div ref={glareRef} className="absolute inset-0 rounded-[36px] pointer-events-none z-20 transition-opacity duration-200 opacity-0 mix-blend-overlay"></div>
                 
                 <div className="choice-indicator choice-left pointer-events-none">{card.leftChoice}</div>
                 <div className="choice-indicator choice-right pointer-events-none">{card.rightChoice}</div>
