@@ -1,11 +1,10 @@
 /* =========================================================
    ФАЙЛ: js/CardEngine.jsx
-   AAA-Движок: Продвинутая физика, 3D-Освещение, Бесшовная смена
+   AAA-Движок: ИСПРАВЛЕННЫЕ СТИЛИ (Возврат к CSS-классам)
 ========================================================= */
 
 const { useRef, useState, useEffect, useImperativeHandle } = React;
 
-// Компонент печатающегося текста (без изменений, он идеален)
 const TypewriterText = ({ text }) => {
     const [displayed, setDisplayed] = useState("");
     
@@ -38,22 +37,19 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     const nextCardRef = useRef(null);
     const glareRef = useRef(null);
     
-    // Вся математика в useRef (0 лагов, 60 FPS)
     const state = useRef({ 
         x: 0, y: 0, rx: 0, ry: 0, 
         isDragging: false, isFlying: false, 
         startX: 0, startY: 0, currentPrediction: null 
     });
 
-    // Свежие пропсы для безопасных коллбэков
     const latestProps = useRef({ card, onSwipe, isBurning });
     useEffect(() => { latestProps.current = { card, onSwipe, isBurning }; }, [card, onSwipe, isBurning]);
 
-    const SWIPE_THRESHOLD = 130; // Чуть увеличил порог для солидности
-    const SPRING_TENSION = 0.12; // Плавный возврат пружины
+    const SWIPE_THRESHOLD = 130; 
+    const SPRING_TENSION = 0.12; 
     const FRICTION = 0.85;       
 
-    // Реакция аватарки на плохие решения
     const getReactionEmoji = (effects, defaultAvatar) => {
         if (!effects) return defaultAvatar;
         if (effects.safety < -15 || effects.budget < -20) return "😰"; 
@@ -63,7 +59,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         return defaultAvatar; 
     };
 
-    // Обновление приборов на столе (Инъекция DOM)
     const updatePredictions = (x) => {
         const currentCard = latestProps.current.card;
         if (!currentCard) return;
@@ -81,7 +76,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         const avatarUI = document.getElementById('card-avatar');
         const cardWrapUI = document.getElementById('card-wrapper');
 
-        // Сброс тревоги
         if (absX < 30) {
             if (state.current.currentPrediction !== null) {
                 safetyUI?.classList.remove('gauge-predict-danger'); 
@@ -94,7 +88,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
             return;
         }
 
-        // Включение тревоги при натяжении
         const dir = x < 0 ? 'left' : 'right';
         if (state.current.currentPrediction !== dir) {
             state.current.currentPrediction = dir;
@@ -117,38 +110,31 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     };
 
-    // ГЛАВНЫЙ РЕНДЕР КАДРА (Математика позиций)
     const updateTransform = () => {
         if (!cardRef.current) return;
         const { x, y, rx, ry, isDragging } = state.current;
         
-        // 1. Физика активной карты (Вращение от нижнего края + увеличение при клике)
         const dragRotate = x * 0.06; 
         const scale = isDragging ? 1.03 : 1; 
         cardRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotateZ(${dragRotate}deg) rotateY(${ry}deg) rotateX(${rx}deg)`;
         
-        // Динамическая тень: при отрыве от экрана становится глубже
         cardRef.current.style.boxShadow = isDragging 
             ? `0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.2) inset` 
             : `0 30px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.1) inset`;
 
-        // 2. 3D-Блик (Голографический эффект луча)
         if (glareRef.current) {
             const intensity = Math.min(Math.abs(x)/200 + Math.abs(ry)/30, 0.6);
             glareRef.current.style.opacity = intensity;
             glareRef.current.style.background = `linear-gradient(${105 + x * 0.5 + ry * 2}deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 80%)`;
         }
 
-        // 3. Индикаторы выбора (Разрешить / Отказать)
         const leftInd = cardRef.current.querySelector('.choice-left'); 
         const rightInd = cardRef.current.querySelector('.choice-right');
         if (leftInd) leftInd.style.opacity = x < -30 ? Math.min((Math.abs(x)-30)/60, 1) : 0;
         if (rightInd) rightInd.style.opacity = x > 30 ? Math.min((Math.abs(x)-30)/60, 1) : 0;
 
-        // 4. КИНЕМАТОГРАФИЧНОЕ ПОЯВЛЕНИЕ НИЖНЕЙ КАРТЫ (Решение бага просвечивания)
         if (nextCardRef.current) {
             const swipeProgress = Math.min(Math.abs(x) / SWIPE_THRESHOLD, 1);
-            // Карта "вырастает" из 0.9 scale в 1.0 и плавно появляется из 0 opacity
             const nextScale = 0.9 + (swipeProgress * 0.1); 
             nextCardRef.current.style.transform = `scale(${nextScale}) translateY(${25 - (swipeProgress * 25)}px)`;
             nextCardRef.current.style.opacity = state.current.isFlying ? 1 : swipeProgress;
@@ -157,7 +143,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         updatePredictions(x);
     };
 
-    // Пружинный возврат, если не дотянули
     const springLoop = () => {
         if (state.current.isDragging || state.current.isFlying) return;
         state.current.x += (0 - state.current.x) * SPRING_TENSION;
@@ -174,23 +159,19 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     };
 
-    // ==========================================
-    // ПУЛЕНЕПРОБИВАЕМЫЕ СОБЫТИЯ (Pointer Capture)
-    // ==========================================
     const handlePointerDown = (e) => {
         if (latestProps.current.isBurning || state.current.isFlying) return;
-        e.target.setPointerCapture(e.pointerId); // Захват пальца/мыши железобетонно
+        e.target.setPointerCapture(e.pointerId); 
         
         state.current.isDragging = true;
         state.current.startX = e.clientX - state.current.x;
         state.current.startY = e.clientY - state.current.y;
         
         if (cardRef.current) cardRef.current.style.transition = 'none';
-        updateTransform(); // Вызов для эффекта "Pop-up"
+        updateTransform(); 
     };
 
     const handlePointerMove = (e) => {
-        // Параллакс, когда просто водим мышкой по карте
         if (!state.current.isDragging && e.pointerType === 'mouse' && !state.current.isFlying) {
             const rect = cardRef.current.getBoundingClientRect();
             state.current.rx = -((e.clientY - rect.top - rect.height/2) / rect.height) * 15; 
@@ -202,7 +183,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         
         if (!state.current.isDragging) return;
         
-        // Резиновое сопротивление (0.85)
         state.current.x = (e.clientX - state.current.startX) * 0.85; 
         state.current.y = (e.clientY - state.current.startY) * 0.85;
         updateTransform();
@@ -223,10 +203,12 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     };
 
-    // Вылет карты с экрана
     const triggerSwipe = (direction) => {
         state.current.isFlying = true;
         if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(0); 
+        
+        // Воспроизводим звук свайпа с 3D-эффектом
+        if (window.AudioEngine && window.AudioEngine.swipe) window.AudioEngine.swipe(direction); 
         
         state.current.x = direction === 'right' ? window.innerWidth + 100 : -window.innerWidth - 100; 
         state.current.y += 150; 
@@ -234,11 +216,9 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         if (cardRef.current) cardRef.current.style.transition = 'transform 0.35s ease-in, opacity 0.3s';
         updateTransform(); 
         
-        // Вызов следующего хода
         setTimeout(() => { latestProps.current.onSwipe(direction); }, 350);
     };
 
-    // Гироскоп (Параллакс)
     useEffect(() => {
         const handleOrientation = (e) => {
             if (state.current.isDragging || state.current.isFlying || latestProps.current.isBurning) return;
@@ -253,7 +233,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         return () => window.removeEventListener('deviceorientation', handleOrientation);
     }, []);
 
-    // Сброс стейта при выдаче новой карты
     useEffect(() => {
         state.current = { x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null };
         if(cardRef.current) {
@@ -268,7 +247,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     }, [card]);
 
-    // Экспорт для кнопок внизу
     useImperativeHandle(card?.ref, () => ({
         forceSwipe: (dir) => { if (!state.current.isDragging && !state.current.isFlying && !latestProps.current.isBurning) triggerSwipe(dir); }
     }));
@@ -276,18 +254,17 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     if (!card) return null;
 
     return (
-        <div className="relative w-full max-w-[360px] aspect-[3/4.2] mx-auto perspective-[1500px] z-10 select-none">
+        // ВЕРНУЛИ КЛАССЫ card-stack И swipe-card ИЗ CSS!
+        <div className="card-stack">
             
-            {/* НИЖНЯЯ КАРТА (Абсолютно спрятана в начале) */}
             {nextCard && (
-                <div ref={nextCardRef} className="absolute inset-0 bg-slate-200 rounded-[36px] flex flex-col items-center justify-center opacity-0 border border-slate-300 shadow-[0_15px_30px_rgba(0,0,0,0.5)] will-change-[transform,opacity] pointer-events-none" style={{ transformOrigin: 'center bottom' }}>
+                <div ref={nextCardRef} className="next-card flex flex-col items-center justify-center opacity-0 pointer-events-none" style={{ transformOrigin: 'center bottom', willChange: 'transform, opacity' }}>
                     <div className="text-[6rem] opacity-20 grayscale filter drop-shadow-md">{nextCard.avatar}</div>
                 </div>
             )}
             
-            {/* ГЛАВНАЯ КАРТА */}
             <div ref={cardRef} 
-                className={`absolute inset-0 bg-white rounded-[36px] flex flex-col will-change-transform transform-style-3d cursor-grab active:cursor-grabbing origin-bottom ${card.isUrgent?'bg-rose-50 border-2 border-rose-300':''} ${isBurning ? 'animate-burn' : ''}`}
+                className={`swipe-card cursor-grab active:cursor-grabbing origin-bottom ${card.isUrgent?'bg-rose-50 border-2 border-rose-300':''} ${isBurning ? 'animate-burn' : ''}`}
                 style={{ touchAction: 'none', transformOrigin: '50% 120%' }}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
@@ -295,15 +272,12 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
                 onPointerCancel={handlePointerUp}
                 onPointerLeave={handlePointerUp}
             >
-                {/* 3D БЛИК */}
-                <div ref={glareRef} className="absolute inset-0 rounded-[36px] pointer-events-none z-20 transition-opacity duration-200 opacity-0 mix-blend-overlay"></div>
+                <div ref={glareRef} className="glare mix-blend-overlay"></div>
                 
-                {/* ИНДИКАТОРЫ */}
                 <div className="choice-indicator choice-left pointer-events-none">{card.leftChoice}</div>
                 <div className="choice-indicator choice-right pointer-events-none">{card.rightChoice}</div>
                 
-                {/* ВЕРХНЯЯ ЧАСТЬ (Персонаж) */}
-                <div className="relative z-10 bg-slate-50/50 rounded-t-[36px] p-4 flex flex-col items-center justify-center border-b border-slate-100 h-[45%] pointer-events-none">
+                <div className={`relative z-10 bg-slate-50/50 rounded-t-[36px] p-4 flex flex-col items-center justify-center border-b border-slate-100 h-[45%] pointer-events-none ${card.isUrgent?'bg-rose-50 border-rose-200':''}`}>
                     <div id="card-wrapper" className="avatar-wrapper text-[5rem] mb-2 filter drop-shadow-[0_15px_15px_rgba(0,0,0,0.2)]">
                         <span id="card-avatar">{card.avatar}</span>
                     </div>
@@ -311,7 +285,6 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
                     <div className="mt-2 px-4 py-1.5 rounded-full font-black text-[11px] uppercase shadow-[0_5px_10px_rgba(37,99,235,0.3)] tracking-widest bg-blue-600 text-white">{card.role}</div>
                 </div>
                 
-                {/* НИЖНЯЯ ЧАСТЬ (Текст) */}
                 <div className="p-6 flex-1 flex items-center justify-center bg-white rounded-b-[36px] pointer-events-none">
                     <TypewriterText text={card.text} />
                 </div>
