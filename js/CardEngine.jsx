@@ -70,11 +70,11 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         
         const absX = Math.abs(x);
         const intensity = Math.min(absX / SWIPE_THRESHOLD, 1); 
-        
-        if (window.AudioEngine && window.AudioEngine.setTension) {
-            window.AudioEngine.setTension(intensity);
+       
+        if (window.AudioEngine && window.AudioEngine.setTension) window.AudioEngine.setTension(0); 
+        if (window.AudioEngine && window.AudioEngine.swipe) window.AudioEngine.swipe(direction); // Добавили эту строчку!
         }
-
+       
         const safetyUI = document.getElementById('gauge-safety');
         const budgetUI = document.getElementById('lcd-budget');
         const loyaltyUI = document.getElementById('bar-loyalty');
