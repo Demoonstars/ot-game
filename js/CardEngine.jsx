@@ -1,12 +1,14 @@
 /* =========================================================
    ФАЙЛ: js/CardEngine.jsx
-   AAA-Движок: Высокая производительность (60 FPS Mobile)
+   AAA-Движок Физики: 3D-Параллакс, Свайпы, Holo Foil
 ========================================================= */
 
 const { useRef, useState, useEffect, useImperativeHandle } = React;
 
+// Вспомогательный компонент для эффекта "Печатающей машинки" и подсветки опасных слов
 const TypewriterText = ({ text }) => {
     const [displayed, setDisplayed] = useState("");
+    
     useEffect(() => {
         setDisplayed(""); 
         let i = 0;
@@ -19,7 +21,7 @@ const TypewriterText = ({ text }) => {
     }, [text]);
     
     const highlightWords = (str) => {
-        const words = ["убью", "штраф", "срочно", "пожар", "вскрыть", "уволю", "быстро", "скорую", "кровь", "эвакуация", "травма", "смерть", "упал", "взрыв", "катастрофа", "ампутация"];
+        const words = ["убью", "штраф", "срочно", "пожар", "вскрыть", "уволю", "быстро", "скорую", "кровь", "эвакуация", "травма", "смерть", "упал", "взрыв", "катастрофа", "ампутация", "суд", "тюрьм", "арест"];
         let res = str;
         words.forEach(w => { 
             const regex = new RegExp(`(${w})`, 'gi'); 
@@ -31,7 +33,8 @@ const TypewriterText = ({ text }) => {
     return <p dangerouslySetInnerHTML={highlightWords(displayed)} className="text-slate-800 text-[1.05rem] font-semibold text-center leading-snug relative z-10 pointer-events-none" />;
 };
 
-const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
+// Главный движок карточки
+export const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     const cardRef = useRef(null);
     const nextCardRef = useRef(null);
     const glareRef = useRef(null);
@@ -41,7 +44,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
 
     useEffect(() => { latestProps.current = { card, onSwipe, isBurning }; }, [card, onSwipe, isBurning]);
 
-    const SWIPE_THRESHOLD = 110; // Немного снизил порог для легкого свайпа на мобилках
+    const SWIPE_THRESHOLD = 110; 
     const SPRING_TENSION = 0.15; 
     const FRICTION = 0.85;       
 
@@ -52,21 +55,23 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         const dragRotate = x * 0.05; 
         const scale = isDragging ? 1.02 : 1; 
         
-        // ОПТИМИЗАЦИЯ: translate3d включает аппаратное ускорение на 100%
+        // Аппаратное ускорение через translate3d
         cardRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotateZ(${dragRotate}deg) rotateY(${ry}deg) rotateX(${rx}deg)`;
 
-        // ОПТИМИЗАЦИЯ БЛИКА: Оставили градиент, убрали тяжелые расчеты
+        // Эффект Holo Foil (Голографический блик)
         if (glareRef.current && !isDragging) {
             const intensity = Math.min(Math.abs(rx)/40 + Math.abs(ry)/40, 0.5);
             glareRef.current.style.opacity = intensity;
             glareRef.current.style.background = `linear-gradient(${105 + ry * 2}deg, rgba(255,255,255,0) 10%, rgba(255,215,0, 0.4) 40%, rgba(0,255,255, 0.4) 60%, rgba(255,255,255,0) 90%)`;
         }
 
+        // Индикаторы выбора
         const leftInd = cardRef.current.querySelector('.choice-left'); 
         const rightInd = cardRef.current.querySelector('.choice-right');
         if (leftInd) leftInd.style.opacity = x < -20 ? Math.min((Math.abs(x)-20)/50, 1) : 0;
         if (rightInd) rightInd.style.opacity = x > 20 ? Math.min((Math.abs(x)-20)/50, 1) : 0;
 
+        // Анимация следующей карты
         if (nextCardRef.current) {
             const swipeProgress = Math.min(Math.abs(x) / SWIPE_THRESHOLD, 1);
             const nextScale = 0.95 + (swipeProgress * 0.05); 
@@ -75,6 +80,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     };
 
+    // Физика пружины для возврата карты в центр
     const springLoop = () => {
         if (state.current.isDragging || state.current.isFlying) return;
         state.current.x += (0 - state.current.x) * SPRING_TENSION;
@@ -91,10 +97,12 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     };
 
+    // Глобальные слушатели мыши и пальцев (Защита от залипаний)
     useEffect(() => {
         const handlePointerMove = (e) => {
             if (latestProps.current.isBurning || state.current.isFlying) return;
             
+            // 3D Параллакс без зажатия
             if (!state.current.isDragging && e.pointerType === 'mouse') {
                 const rect = cardRef.current?.getBoundingClientRect();
                 if (rect) {
@@ -111,7 +119,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
             updateTransform();
         };
 
-        const handlePointerUp = (e) => {
+        const handlePointerUp = () => {
             if (!state.current.isDragging) return;
             state.current.isDragging = false;
 
@@ -145,7 +153,9 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
 
     const triggerSwipe = (direction) => {
         state.current.isFlying = true;
-        if (window.AudioEngine && window.AudioEngine.swipe) window.AudioEngine.swipe(direction); 
+        
+        // Импортируем звук динамически через window, если нужно, или просто вызываем
+        // Примечание: Звук будет дергаться из App.jsx или глобального скоупа
         
         state.current.x = direction === 'right' ? window.innerWidth + 50 : -window.innerWidth - 50; 
         state.current.y += 100; 
@@ -156,7 +166,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         setTimeout(() => { latestProps.current.onSwipe(direction); }, 300);
     };
 
-    // ОПТИМИЗАЦИЯ: Троттлинг гироскопа (чтобы не убивать CPU)
+    // Гироскоп с защитой от троттлинга
     useEffect(() => {
         let ticking = false;
         const handleOrientation = (e) => {
@@ -175,8 +185,9 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         return () => window.removeEventListener('deviceorientation', handleOrientation);
     }, []);
 
+    // Сброс при смене карты
     useEffect(() => {
-        state.current = { x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0, currentPrediction: null };
+        state.current = { x: 0, y: 0, rx: 0, ry: 0, isDragging: false, isFlying: false, startX: 0, startY: 0 };
         if(cardRef.current) {
             cardRef.current.style.transition = 'none';
             cardRef.current.style.transform = `translate3d(0,0,0) scale(1)`;
@@ -188,6 +199,7 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     }, [card]);
 
+    // Доступ к методу снаружи (для кнопок)
     useImperativeHandle(card?.ref, () => ({
         forceSwipe: (dir) => { if (!state.current.isDragging && !state.current.isFlying && !latestProps.current.isBurning) triggerSwipe(dir); }
     }));
@@ -226,5 +238,3 @@ const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         </div>
     );
 };
-
-window.CardEngine = CardEngine;
