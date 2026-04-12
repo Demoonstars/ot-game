@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>СМЕНА 3.0: Симулятор СОТ</title>
+  <title>СМЕНА: Симулятор СОТ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0a0f1c">
   
@@ -18,7 +18,8 @@
                     blob: { '0%': { transform: 'translate3d(0, 0, 0) scale(1)' }, '33%': { transform: 'translate3d(30px, -50px, 0) scale(1.1)' }, '66%': { transform: 'translate3d(-20px, 20px, 0) scale(0.9)' }, '100%': { transform: 'translate3d(0, 0, 0) scale(1)' } },
                     flicker: { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.5 }, '70%': { opacity: 0.8 }, '80%': { opacity: 0.2 } },
                     slideUp: { '0%': { transform: 'translate3d(0, 100%, 0)', opacity: 0 }, '100%': { transform: 'translate3d(0, 0, 0)', opacity: 1 } },
-                    phoneRing: { '0%, 100%': { transform: 'rotate(0deg) translate3d(0,0,0)' }, '25%': { transform: 'rotate(-4deg) translate3d(-2px,0,0)' }, '75%': { transform: 'rotate(4deg) translate3d(2px,0,0)' } }
+                    phoneRing: { '0%, 100%': { transform: 'rotate(0deg) translate3d(0,0,0)' }, '25%': { transform: 'rotate(-4deg) translate3d(-2px,0,0)' }, '75%': { transform: 'rotate(4deg) translate3d(2px,0,0)' } },
+                    predictPulse: { '0%, 100%': { transform: 'scale(1)', filter: 'drop-shadow(0 0 10px rgba(225,29,72,0.8))' }, '50%': { transform: 'scale(1.05)', filter: 'drop-shadow(0 0 25px rgba(225,29,72,1))' } }
                 },
                 animation: {
                     shake: 'shake 0.3s infinite', 
@@ -26,7 +27,8 @@
                     blob: 'blob 10s infinite alternate cubic-bezier(0.4, 0, 0.2, 1)', 
                     flicker: 'flicker 3s infinite',
                     slideUp: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards', 
-                    phoneRing: 'phoneRing 0.2s infinite'
+                    phoneRing: 'phoneRing 0.2s infinite',
+                    predictPulse: 'predictPulse 1s infinite'
                 }
             }
         }
@@ -36,13 +38,11 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     body { margin: 0; padding: 0; background-color: #0a0f1c; color: #f8fafc; overflow: hidden; height: 100dvh; width: 100vw; perspective: 1000px; }
 
-    /* ОПТИМИЗАЦИЯ: Убрали тяжелые фильтры из глобальных классов, оставили только opacity и scale */
     body.critical-budget .dashboard-panel { animation: flicker 4s infinite; }
     .hazard-border { position: fixed; inset: 0; z-index: 99; pointer-events: none; opacity: 0; transition: opacity 0.3s; border: 8px solid transparent; border-image: repeating-linear-gradient(45deg, #fbbf24, #fbbf24 20px, #1e293b 20px, #1e293b 40px) 8; }
     body.critical-safety .hazard-border { opacity: 0.8; }
@@ -50,7 +50,6 @@
     body.critical-loyalty .vignette-anger { box-shadow: inset 0 0 150px rgba(153, 27, 27, 0.5); }
 
     .mesh-container { position: fixed; inset: 0; z-index: -2; overflow: hidden; background: #0f172a; }
-    /* ОПТИМИЗАЦИЯ: Уменьшили радиус размытия фона */
     .blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; will-change: transform; }
     .grid-overlay { position: fixed; inset: 0; z-index: -1; background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px); background-size: 40px 40px; }
     
@@ -59,14 +58,12 @@
     .theme-evening .blob-1 { background: #d97706; } .theme-evening .blob-2 { background: #7c3aed; }
     .theme-night .blob-1 { background: #1e1b4b; } .theme-night .blob-2 { background: #4c1d95; }
 
-    /* ОПТИМИЗАЦИЯ ЧАСТИЦ: Полностью вырезан filter: blur. Оставлен только легкий box-shadow */
     .particle-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
     .dust { position: absolute; border-radius: 50%; background: rgba(226, 232, 240, 0.5); animation: float var(--d) infinite linear; will-change: transform, opacity; }
     .ember { position: absolute; border-radius: 50%; background: #ff2a00; box-shadow: 0 0 8px #ff2a00; animation: rise var(--d) infinite ease-in; will-change: transform, opacity; }
     @keyframes float { 0% { transform: translate3d(0, 110vh, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate3d(100px, -10vh, 0); opacity: 0; } }
     @keyframes rise { 0% { transform: translate3d(0, 110vh, 0) scale(1.2); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate3d(-30px, -10vh, 0) scale(0.5); opacity: 0; } }
 
-    /* ОПТИМИЗАЦИЯ ТЕКСТУРЫ КАРТЫ: Замена тяжелого SVG на сверхбыстрый CSS-паттерн */
     .card-texture { position: absolute; inset: 0; border-radius: 36px; pointer-events: none; z-index: 15; background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.01) 0px, rgba(0,0,0,0.01) 1px, transparent 1px, transparent 3px); background-size: 4px 4px; opacity: 0.8; }
 
     .btn-back { position: absolute; top: 24px; left: 24px; width: 50px; height: 50px; background: rgba(30, 41, 59, 0.85); border: 2px solid rgba(148, 163, 184, 0.3); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #f8fafc; font-size: 24px; font-weight: bold; cursor: pointer; backdrop-filter: blur(8px); z-index: 100; transition: transform 0.2s; }
@@ -84,15 +81,19 @@
     .loyalty-bar-container { width: 85px; height: 16px; background: #020617; border-radius: 8px; border: 2px solid #1e293b; overflow: hidden; }
     .loyalty-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s, background-color 0.5s; }
 
-    .physical-phone { position: absolute; right: -10px; top: 28vh; width: 60px; height: 120px; background: #0f172a; border: 3px solid #334155; border-radius: 14px 0 0 14px; box-shadow: -10px 10px 20px rgba(0,0,0,0.8); z-index: 50; display: flex; align-items: center; padding-left: 5px; cursor: pointer; }
-    .physical-phone.ringing { border-color: #e11d48; animation: phoneRing 0.3s infinite; }
-    .ios-screen { background: #0f172a; flex: 1; border-radius: 24px; border: 6px solid #020617; display: flex; flex-direction: column; overflow: hidden; }
-    .chat-bubble-received { background: #1e293b; color: #f8fafc; padding: 10px 14px; border-radius: 18px; border-bottom-left-radius: 4px; max-width: 85%; align-self: flex-start; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-    .phone-screen-mini { width: 40px; height: 100px; background: #020617; border-radius: 8px; position: relative; display: flex; justify-content: center; overflow: hidden; }
-    .phone-badge-diegetic { position: absolute; top: 8px; right: 4px; background: #e11d48; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #020617; }
+    /* === НОВАЯ ПАНЕЛЬ ПРИЛОЖЕНИЙ (OS DOCK) === */
+    .os-dock { position: absolute; right: 12px; top: 25vh; display: flex; flex-direction: column; gap: 16px; z-index: 50; }
+    .dock-btn { width: 54px; height: 54px; border-radius: 18px; background: rgba(15, 23, 42, 0.85); border: 2px solid rgba(255,255,255,0.05); backdrop-filter: blur(12px); box-shadow: 0 10px 25px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 26px; cursor: pointer; transition: transform 0.2s, background 0.2s; position: relative; }
+    .dock-btn:active { transform: scale(0.9); background: rgba(30, 41, 59, 0.95); }
+    .dock-btn.ringing { animation: phoneRing 0.3s infinite; border-color: #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), inset 0 0 10px rgba(59, 130, 246, 0.3); }
+    .dock-badge { position: absolute; top: -6px; right: -6px; background: #e11d48; color: white; font-size: 11px; font-weight: 900; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #0f172a; box-shadow: 0 0 10px rgba(225,29,72,0.8); animation: predictPulse 1s infinite; }
+
+    /* === ОКНО ПРИЛОЖЕНИЯ (МЕССЕНДЖЕР / СПРАВОЧНИК) === */
+    .os-window-overlay { position: absolute; inset: 0; z-index: 150; background: rgba(2, 6, 23, 0.75); backdrop-filter: blur(10px); display: flex; flex-direction: column; padding: 24px 16px; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .os-window { background: #0f172a; flex: 1; border-radius: 28px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden; }
+    .chat-bubble-received { background: #1e293b; color: #f8fafc; padding: 12px 16px; border-radius: 20px; border-bottom-left-radius: 4px; max-width: 85%; align-self: flex-start; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); }
 
     .card-stack { position: relative; width: 100%; max-width: 340px; aspect-ratio: 3/4.2; margin: 0 auto; perspective: 1000px; z-index: 10; }
-    /* ОПТИМИЗАЦИЯ: Добавлен will-change: transform для переноса слоя в GPU */
     .swipe-card { position: absolute; inset: 0; background: #ffffff; border-radius: 32px; display: flex; flex-direction: column; box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5); will-change: transform; overflow: hidden; }
     .next-card { position: absolute; inset: 0; background: #e2e8f0; border-radius: 32px; will-change: transform, opacity; z-index: -1; box-shadow: 0 10px 20px rgba(0,0,0,0.3); border: 1px solid #cbd5e1; }
 
