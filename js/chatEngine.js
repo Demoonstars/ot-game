@@ -1,15 +1,15 @@
 /* =========================================================
    ФАЙЛ: js/chatEngine.js
-   AAA-Движок: Smart Queue, Dynamic Typing, Anti-Spam
+   AAA-Движок: ES6 Модуль (Smart Queue, Dynamic Typing, Anti-Spam)
 ========================================================= */
 
-const ChatEngine = (() => {
+export const ChatEngine = (() => {
     let mainLoopTimer = null;
     let typingTimer = null;
     let messageCounter = 2; 
     let subscribers = []; 
     
-    // Инновация: Память сессии (чтобы сообщения не повторялись)
+    // Память сессии для исключения повторов сообщений
     let usedTexts = new Set();
 
     const senders = [
@@ -18,6 +18,7 @@ const ChatEngine = (() => {
         "Снабжение", "Айтишник Влад", "Секретарь Леночка"
     ];
 
+    // Анонимная база сообщений
     const texts = [
         "Начальник, тут Михалыч опять без страховки на крышу лезет... Сними его оттуда!",
         "Шеф, а когда новую партию перчаток выдадут? Мои уже до дыр стерлись.",
@@ -42,7 +43,7 @@ const ChatEngine = (() => {
 
     // Умный генератор уникальных сообщений
     const getUniqueMessage = () => {
-        if (usedTexts.size >= texts.length) usedTexts.clear(); // Сброс памяти, если всё отправили
+        if (usedTexts.size >= texts.length) usedTexts.clear();
         
         let availableTexts = texts.filter(t => !usedTexts.has(t));
         let randomText = availableTexts[Math.floor(Math.random() * availableTexts.length)];
@@ -56,26 +57,21 @@ const ChatEngine = (() => {
 
     const start = () => {
         stop(); 
-        usedTexts.clear(); // Очищаем память при новой смене
+        usedTexts.clear();
 
         // Асинхронная рекурсивная петля (Smart Loop)
         const runEngineLoop = () => {
-            // Задержка между сообщениями: от 12 до 25 секунд
             const idleDelay = Math.floor(Math.random() * 13000) + 12000; 
             
             mainLoopTimer = setTimeout(() => {
                 const msgData = getUniqueMessage();
                 
-                // ИННОВАЦИЯ: Динамический расчет времени печати
-                // Человек печатает примерно 1 символ за 50 миллисекунд + базовое время на "взять телефон"
+                // Динамический расчет времени печати на основе длины строки
                 const typingDuration = Math.min(Math.max(msgData.text.length * 40 + 500, 1500), 4500);
                 
-                // 1. Сигнал: Контакт начал печатать
                 notify('typing', { from: msgData.from });
 
-                // 2. Ждем высчитанное время (Dynamic Delay)
                 typingTimer = setTimeout(() => {
-                    // Сигнал: Сообщение готово
                     notify('message', { 
                         id: messageCounter++, 
                         from: msgData.from, 
@@ -83,14 +79,12 @@ const ChatEngine = (() => {
                         read: false 
                     });
                     
-                    // Планируем следующий цикл только после доставки текущего
                     runEngineLoop(); 
                 }, typingDuration);
 
             }, idleDelay);
         };
         
-        // Запускаем двигатель
         runEngineLoop();
     };
 
@@ -101,6 +95,3 @@ const ChatEngine = (() => {
 
     return { start, stop, subscribe, unsubscribe };
 })();
-
-// Экспорт в глобальную среду
-window.ChatEngine = ChatEngine;
