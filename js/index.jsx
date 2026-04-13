@@ -6,12 +6,6 @@
 
 const { useState, useEffect, useRef } = React;
 
-// Достаем наши системы из глобальной области
-const { 
-    CAMPAIGNS, BOSS_CARDS, ACHIEVEMENTS_LIST, TERRITORY_UPGRADES, 
-    AudioEngine, vibrate, ChatEngine, CardEngine 
-} = window;
-
 // --- ВИЗУАЛЬНЫЕ КОМПОНЕНТЫ (UI) ---
 
 const ParticleSystem = ({ safety }) => {
