@@ -310,10 +310,10 @@ function Game() {
 
   if (gameState === 'office') {
       return (
-          <div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
+<div className="flex flex-col items-center justify-start h-[100dvh] pt-12 px-6 bg-slate-900 text-white relative z-20">
               <button onClick={() => setGameState('start')} className="btn-back">←</button>
               <h2 className="text-3xl font-black uppercase tracking-widest text-blue-400 mb-2">Кабинет</h2>
-              <div className="bg-slate-800 px-6 py-2 rounded-full border border-slate-600 mb-8 font-black text-xl text-yellow-400">Бюджет: {coins} 🪙</div>
+              <div className="bg-slate-800 px-6 py-2 rounded-full border border-slate-600 mb-8 font-black text-xl text-yellow-400">Бюджет: {coins} 💰</div>
               <div className="w-full max-w-md flex flex-col gap-4 overflow-y-auto pb-10 custom-scroll">
                   {TERRITORY_UPGRADES.map(upg => {
                       const isOwned = territory.includes(upg.id);
@@ -328,7 +328,7 @@ function Game() {
                                           setTerritory(prev => { const n = [...prev, upg.id]; localStorage.setItem('smena_territory', JSON.stringify(n)); return n; });
                                       } else if (AudioEngine) AudioEngine.error();
                                   }} className={`px-4 py-2 rounded-xl font-black text-sm ${coins >= upg.cost ? 'bg-blue-600' : 'bg-slate-700 text-slate-500'}`}>
-                                      {upg.cost} 🪙
+                                      {upg.cost} 💰
                                   </button>
                               ) : <div className="text-blue-400 font-black text-sm px-2">В НАЛИЧИИ</div>}
                           </div>
