@@ -1,6 +1,6 @@
 /* =========================================================
    ФАЙЛ: js/audio.js
-   AAA-Аудиодвижок (Модульная архитектура)
+   AAA-Аудиодвижок (Без export, привязка к window)
 ========================================================= */
 
 const createAudioEngine = () => {
@@ -22,7 +22,7 @@ const createAudioEngine = () => {
         
         initBGM();
 
-        // Мобильная разблокировка
+        // Мобильная разблокировка звука (браузеры требуют клика от пользователя)
         if (ctx.state === 'suspended') {
             const unlock = () => {
                 ctx.resume();
@@ -42,10 +42,10 @@ const createAudioEngine = () => {
             bgmPlayer.loop = true;
             bgmPlayer.volume = baseVolume;
         }
-        bgmPlayer.play().catch(e => console.log('MP3 трек не найден. Положите bgm.mp3 в папку assets/'));
+        bgmPlayer.play().catch(e => console.log('Фоновая музыка не найдена. Создайте папку assets и положите туда bgm.mp3'));
     };
 
-    // Система приглушения музыки (Ducking)
+    // Система приглушения музыки (Ducking) при важных звуковых событиях
     const duckMusic = (durationMs, dipVolume = 0.05) => {
         if (!bgmPlayer) return;
         
@@ -112,7 +112,7 @@ const createAudioEngine = () => {
         osc.stop(ctx.currentTime + duration + 0.1);
     };
 
-    // Звук свайпа со стерео-панорамой
+    // Звук свайпа со стерео-панорамой (Spatial Audio)
     const playPaperSwipe = (direction = null) => {
         if (!enabled || !ctx) return;
         const bufferSize = ctx.sampleRate * 0.15;
@@ -161,11 +161,15 @@ const createAudioEngine = () => {
     };
 };
 
-// ЭКСПОРТИРУЕМ МОДУЛИ
-export const AudioEngine = createAudioEngine();
+const AudioEngine = createAudioEngine();
 
-export const vibrate = (pattern) => { 
+// Глобальная функция вибрации (безопасный вызов)
+const vibrate = (pattern) => { 
     if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.vibrate) {
         window.navigator.vibrate(pattern); 
     }
 };
+
+// ПРИВЯЗКА К ГЛОБАЛЬНОЙ ОБЛАСТИ (ДЛЯ РАБОТЫ БЕЗ СБОРЩИКА)
+window.AudioEngine = AudioEngine;
+window.vibrate = vibrate;
