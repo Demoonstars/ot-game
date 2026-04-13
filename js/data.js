@@ -1,9 +1,10 @@
 /* =========================================================
    ФАЙЛ: js/data.js
    Интеллектуальное ядро: 30+ анонимных сценариев
+   Без export (Адаптировано для прямого запуска в браузере)
 ========================================================= */
 
-export const CAMPAIGNS = {
+const CAMPAIGNS = {
   // === БЛОК 1: ОФИС И ОТЕЛЬ (12 сценариев) ===
   main: [
     { 
@@ -277,7 +278,7 @@ export const CAMPAIGNS = {
   ]
 };
 
-export const BOSS_CARDS = {
+const BOSS_CARDS = {
   fake_sout_consequence: { 
       id: 'boss1', isUrgent: true, character: "Следователь", role: "Прокуратура", avatar: "⚖️", 
       text: "Рабочий потерял слух. В картах СОУТ, которые вы 'нарисовали' — тишина. Оформляем служебный подлог?", 
@@ -312,7 +313,7 @@ export const BOSS_CARDS = {
   }
 };
 
-export const ACHIEVEMENTS_LIST = [ 
+const ACHIEVEMENTS_LIST = [ 
   { id: 'greed', icon: '🤑', title: 'Дракон', desc: 'Сберегли бюджет, но угробили людей.' }, 
   { id: 'tyrant', icon: '⚔️', title: 'Душнила', desc: 'Безопасность 100%, но вас все ненавидят.' }, 
   { id: 'soft', icon: '🧸', title: 'Тереза', desc: 'Угодили всем, но оставили фирму без денег.' }, 
@@ -321,10 +322,16 @@ export const ACHIEVEMENTS_LIST = [
   { id: 'pro', icon: '🏆', title: 'Аттестован', desc: 'Выжили во всех сценариях!' }
 ];
 
-export const TERRITORY_UPGRADES = [ 
+const TERRITORY_UPGRADES = [ 
   { id: 't_fire', icon: '🚨', name: 'Система "Bolid"', desc: 'Оповещение (+10 Безопасность)', cost: 3 }, 
   { id: 't_med', icon: '🚑', name: 'Аптечки ФЭСТ', desc: 'Спокойствие (+10 Лояльность)', cost: 3 }, 
   { id: 't_warehouse', icon: '🏗️', name: 'Стеллажи Склад', desc: 'Защита товара (+10 Бюджет)', cost: 3 },
   { id: 't_coffee', icon: '☕', name: 'Кулер в холл', desc: 'Меньше стресса (+15 Лояльность)', cost: 4 },
   { id: 't_lawyer', icon: '⚖️', name: 'Личный Адвокат', desc: 'Защита от проверок (+15 Бюджет)', cost: 5 }
 ];
+
+// ПРИВЯЗКА К ГЛОБАЛЬНОЙ ОБЛАСТИ (ДЛЯ РАБОТЫ В БРАУЗЕРЕ БЕЗ СБОРЩИКА)
+window.CAMPAIGNS = CAMPAIGNS;
+window.BOSS_CARDS = BOSS_CARDS;
+window.ACHIEVEMENTS_LIST = ACHIEVEMENTS_LIST;
+window.TERRITORY_UPGRADES = TERRITORY_UPGRADES;
