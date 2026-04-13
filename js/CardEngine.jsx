@@ -1,11 +1,12 @@
 /* =========================================================
    ФАЙЛ: js/CardEngine.jsx
    AAA-Движок Физики: 3D-Параллакс, Свайпы, Holo Foil
+   (Без export, привязка к window)
 ========================================================= */
 
 const { useRef, useState, useEffect, useImperativeHandle } = React;
 
-// Вспомогательный компонент для эффекта "Печатающей машинки" и подсветки опасных слов
+// Вспомогательный компонент для эффекта "Печатающей машинки"
 const TypewriterText = ({ text }) => {
     const [displayed, setDisplayed] = useState("");
     
@@ -20,6 +21,7 @@ const TypewriterText = ({ text }) => {
         return () => clearInterval(timer);
     }, [text]);
     
+    // Подсветка опасных слов (триггеры)
     const highlightWords = (str) => {
         const words = ["убью", "штраф", "срочно", "пожар", "вскрыть", "уволю", "быстро", "скорую", "кровь", "эвакуация", "травма", "смерть", "упал", "взрыв", "катастрофа", "ампутация", "суд", "тюрьм", "арест"];
         let res = str;
@@ -34,7 +36,7 @@ const TypewriterText = ({ text }) => {
 };
 
 // Главный движок карточки
-export const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
+const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     const cardRef = useRef(null);
     const nextCardRef = useRef(null);
     const glareRef = useRef(null);
@@ -65,13 +67,13 @@ export const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
             glareRef.current.style.background = `linear-gradient(${105 + ry * 2}deg, rgba(255,255,255,0) 10%, rgba(255,215,0, 0.4) 40%, rgba(0,255,255, 0.4) 60%, rgba(255,255,255,0) 90%)`;
         }
 
-        // Индикаторы выбора
+        // Индикаторы выбора (Разрешить / Отказать)
         const leftInd = cardRef.current.querySelector('.choice-left'); 
         const rightInd = cardRef.current.querySelector('.choice-right');
         if (leftInd) leftInd.style.opacity = x < -20 ? Math.min((Math.abs(x)-20)/50, 1) : 0;
         if (rightInd) rightInd.style.opacity = x > 20 ? Math.min((Math.abs(x)-20)/50, 1) : 0;
 
-        // Анимация следующей карты
+        // Анимация следующей карты (выплывает из-под текущей)
         if (nextCardRef.current) {
             const swipeProgress = Math.min(Math.abs(x) / SWIPE_THRESHOLD, 1);
             const nextScale = 0.95 + (swipeProgress * 0.05); 
@@ -102,7 +104,7 @@ export const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         const handlePointerMove = (e) => {
             if (latestProps.current.isBurning || state.current.isFlying) return;
             
-            // 3D Параллакс без зажатия
+            // 3D Параллакс без зажатия (если просто водим мышкой по экрану)
             if (!state.current.isDragging && e.pointerType === 'mouse') {
                 const rect = cardRef.current?.getBoundingClientRect();
                 if (rect) {
@@ -154,8 +156,7 @@ export const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
     const triggerSwipe = (direction) => {
         state.current.isFlying = true;
         
-        // Импортируем звук динамически через window, если нужно, или просто вызываем
-        // Примечание: Звук будет дергаться из App.jsx или глобального скоупа
+        if (window.AudioEngine && window.AudioEngine.swipe) window.AudioEngine.swipe(direction); 
         
         state.current.x = direction === 'right' ? window.innerWidth + 50 : -window.innerWidth - 50; 
         state.current.y += 100; 
@@ -199,7 +200,7 @@ export const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         }
     }, [card]);
 
-    // Доступ к методу снаружи (для кнопок)
+    // Доступ к методу снаружи (для кнопок на ПК)
     useImperativeHandle(card?.ref, () => ({
         forceSwipe: (dir) => { if (!state.current.isDragging && !state.current.isFlying && !latestProps.current.isBurning) triggerSwipe(dir); }
     }));
@@ -238,3 +239,6 @@ export const CardEngine = ({ card, nextCard, onSwipe, isBurning }) => {
         </div>
     );
 };
+
+// ПРИВЯЗКА К ГЛОБАЛЬНОЙ ОБЛАСТИ (Для работы без сборщика)
+window.CardEngine = CardEngine;
